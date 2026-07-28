@@ -48,35 +48,10 @@ export const getNavigationData = (
       icon: ShieldCheck,
       subItems: [
         {
-          id: "teams",
-          label: "Teams",
-          onClick: () => onNavigate("teams"),
-          active: currentPage === "teams",
-        },
-        {
-          id: "internal-users",
-          label: "Internal Users",
-          onClick: () => onNavigate("internal-users"),
-          active: currentPage === "internal-users",
-        },
-        {
           id: "organizations",
           label: "Organizations",
           onClick: () => onNavigate("organizations"),
           active: currentPage === "organizations",
-        },
-      ],
-    },
-    {
-      id: "ai-gateway",
-      label: "AI Gateway",
-      icon: Cpu,
-      subItems: [
-        {
-          id: "virtual-key",
-          label: "Virtual Key",
-          onClick: () => onNavigate("virtual-key"),
-          active: currentPage === "virtual-key",
         },
       ],
     },

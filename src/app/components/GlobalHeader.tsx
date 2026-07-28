@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { getNavigationData } from "../../mockAPI/navigationData";
 import { useLanguage } from "../../i18n/LanguageContext";
+import { toast } from "sonner";
 import {
   FormModal,
   FormLabel,
@@ -153,6 +154,14 @@ export function GlobalHeader({
   const [isScrolled, setIsScrolled] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] =
     useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] =
+    useState(false);
+  const [profileData, setProfileData] = useState({
+    name: "John Doe",
+    email: "superadmin@guardianlayer.com",
+    phone: "+1 (555) 019-2834",
+    role: "Super Administrator",
+  });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -723,10 +732,9 @@ export function GlobalHeader({
 
   return (
     <header
-      className={`sticky top-0 z-50 bg-white dark:bg-neutral-950 transition-all ${isScrolled
-        ? "border-b border-neutral-200 dark:border-neutral-800 shadow-sm"
-        : ""
-        }`}
+      className={`sticky top-0 z-40 bg-white dark:bg-neutral-950 border-b border-neutral-200 dark:border-neutral-800 transition-all ${
+        isScrolled ? "shadow-xs" : ""
+      }`}
     >
       <div className="h-12 px-6 flex items-center justify-between gap-4">
         {/* Left Side */}
@@ -1570,14 +1578,14 @@ export function GlobalHeader({
                       JD
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-neutral-900 dark:text-white mb-0.5">
-                        John Doe
+                      <div className="text-sm font-semibold text-neutral-900 dark:text-white mb-0.5">
+                        {profileData.name}
                       </div>
-                      <div className="text-xs text-neutral-600 dark:text-neutral-400 mb-1">
-                        john.doe@company.com
+                      <div className="text-xs text-neutral-600 dark:text-neutral-400 mb-1 truncate">
+                        {profileData.email}
                       </div>
-                      <div className="text-xs text-neutral-500 dark:text-neutral-500">
-                        Sales Manager
+                      <div className="text-xs font-semibold text-primary-600 dark:text-primary-400">
+                        {profileData.role}
                       </div>
                     </div>
                   </div>
@@ -1585,7 +1593,13 @@ export function GlobalHeader({
 
                 {/* Menu Items */}
                 <div className="p-1">
-                  <button className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded transition-colors flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setShowUserDropdown(false);
+                      onNavigate?.("profile");
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded transition-colors flex items-center gap-2"
+                  >
                     <User className="w-4 h-4" />
                     <span>My Profile</span>
                   </button>
@@ -1733,6 +1747,7 @@ export function GlobalHeader({
           </FormFooter>
         </form>
       </FormModal>
+
     </header>
   );
 }

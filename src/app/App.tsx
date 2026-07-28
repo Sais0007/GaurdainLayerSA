@@ -24,6 +24,7 @@ import { ErrorBoundary } from "./components/hb/common/ErrorBoundary";
 import TeamsManagement from "./components/TeamsManagement";
 import { FeedbackSystem } from "./components/FeedbackSystem";
 import { GlobalFooter } from "./components/GlobalFooter";
+import SuperAdminProfile from "./components/SuperAdminProfile";
 import { LanguageProvider } from "../i18n/LanguageContext";
 
 export default function App() {
@@ -214,6 +215,8 @@ export default function App() {
               <LogsPage />
             ) : currentPage === "site-map" ? (
               <SiteMap onNavigate={handleNavigate} currentPage={currentPage} />
+            ) : currentPage === "profile" || currentPage === "my-profile" || currentPage === "company-profile" ? (
+              <SuperAdminProfile />
             ) : currentPage === "dashboard" ? (
               <Dashboard />
             ) : (

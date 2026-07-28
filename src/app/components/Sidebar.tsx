@@ -176,8 +176,8 @@ export function Sidebar({
               alt="Logo"
               className="h-8 w-auto object-contain"
             />
-            <span className="text-xl font-bold tracking-tight text-primary-600 dark:text-primary-400">
-              Guardian Layer
+            <span className="text-base font-bold tracking-tight text-primary-600 dark:text-primary-400 whitespace-nowrap">
+              Guardian Layer SA
             </span>
           </div>
         )}
@@ -347,17 +347,17 @@ export function Sidebar({
                   <div className="w-12 h-12 bg-primary-600 dark:bg-primary-500 rounded-full flex items-center justify-center text-white font-medium flex-shrink-0">
                     JD
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-neutral-900 dark:text-white mb-0.5">
-                      John Doe
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-neutral-900 dark:text-white mb-0.5">
+                        John Doe
+                      </div>
+                      <div className="text-xs text-neutral-600 dark:text-neutral-400 mb-1 truncate">
+                        superadmin@guardianlayer.com
+                      </div>
+                      <div className="text-xs font-semibold text-primary-600 dark:text-primary-400">
+                        Super Administrator
+                      </div>
                     </div>
-                    <div className="text-xs text-neutral-600 dark:text-neutral-400 mb-1">
-                      john.doe@company.com
-                    </div>
-                    <div className="text-xs text-neutral-500 dark:text-neutral-500">
-                      Sales Manager
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -366,7 +366,7 @@ export function Sidebar({
                 <button
                   onClick={() => {
                     setShowProfileDrawer(false);
-                    // Handle profile click
+                    onNavigate?.("profile");
                   }}
                   className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded transition-colors flex items-center gap-2"
                 >
