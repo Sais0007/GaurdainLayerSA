@@ -32,7 +32,10 @@ import {
   Upload,
   FileSpreadsheet,
   Globe,
-  UserPlus
+  UserPlus,
+  Save,
+  Cpu,
+  CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
 import { 
@@ -227,15 +230,130 @@ const mockOrganizations: OrganizationItem[] = [
   },
 ];
 
-const AVAILABLE_MODELS = [
-  { id: "gpt-4.1", name: "GPT-4.1", provider: "OpenAI", badge: "Flagship" },
-  { id: "gpt-4o", name: "GPT-4o", provider: "OpenAI", badge: "Multimodal" },
-  { id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet", provider: "Anthropic", badge: "Reasoning" },
-  { id: "gemini-1-5-pro", name: "Gemini 1.5 Pro", provider: "Google", badge: "1M Context" },
-  { id: "llama-3-70b", name: "Llama 3 70B", provider: "Meta", badge: "Open Source" },
-  { id: "codex-mini-latest", name: "Codex", provider: "OpenAI", badge: "Code" },
-  { id: "mistral-large", name: "Mistral Large", provider: "Mistral", badge: "Fast" },
+export interface AIModelItem {
+  id: string;
+  name: string;
+  badge?: string;
+}
+
+export interface AIProviderItem {
+  id: string;
+  name: string;
+  badge: string;
+  description: string;
+  models: AIModelItem[];
+}
+
+export const AI_PROVIDERS: AIProviderItem[] = [
+  {
+    id: "openai",
+    name: "OpenAI",
+    badge: "OpenAI",
+    description: "GPT-4o, GPT-4.1, o3, o4-mini, and Codex models",
+    models: [
+      { id: "gpt-4o", name: "GPT-4o", badge: "Multimodal" },
+      { id: "gpt-4.1", name: "GPT-4.1", badge: "Flagship" },
+      { id: "gpt-4-turbo", name: "GPT-4 Turbo" },
+      { id: "gpt-4o-mini", name: "GPT-4o Mini", badge: "Fast" },
+      { id: "o3", name: "o3", badge: "Reasoning" },
+      { id: "o4-mini", name: "o4-mini" },
+      { id: "codex-mini-latest", name: "Codex", badge: "Code" },
+    ],
+  },
+  {
+    id: "anthropic",
+    name: "Anthropic",
+    badge: "Anthropic",
+    description: "Claude 3.5 Sonnet, Claude Opus, and Haiku models",
+    models: [
+      { id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet", badge: "Reasoning" },
+      { id: "claude-3-5-haiku", name: "Claude 3.5 Haiku", badge: "Fast" },
+      { id: "claude-3-opus", name: "Claude 3 Opus" },
+      { id: "claude-3-sonnet", name: "Claude 3 Sonnet" },
+    ],
+  },
+  {
+    id: "google",
+    name: "Google",
+    badge: "Google",
+    description: "Gemini 2.5 Pro, Gemini 1.5 Pro, and Flash",
+    models: [
+      { id: "gemini-2-5-pro", name: "Gemini 2.5 Pro", badge: "Recommended" },
+      { id: "gemini-1-5-pro", name: "Gemini 1.5 Pro", badge: "1M Context" },
+      { id: "gemini-1-5-flash", name: "Gemini 1.5 Flash", badge: "Fast" },
+      { id: "gemini-ultra", name: "Gemini Ultra" },
+    ],
+  },
+  {
+    id: "azure-openai",
+    name: "Azure OpenAI",
+    badge: "Azure OpenAI",
+    description: "Enterprise deployed OpenAI instances on Azure",
+    models: [
+      { id: "azure-gpt-4o", name: "Azure GPT-4o" },
+      { id: "azure-gpt-4-32k", name: "Azure GPT-4 32k" },
+      { id: "azure-embeddings", name: "Azure Embeddings" },
+    ],
+  },
+  {
+    id: "meta",
+    name: "Meta",
+    badge: "Meta",
+    description: "Llama 3 70B, Llama 3 8B, and Llama 3.1 405B",
+    models: [
+      { id: "llama-3-70b", name: "Llama 3 70B", badge: "Open Source" },
+      { id: "llama-3-8b", name: "Llama 3 8B" },
+      { id: "llama-3-1-405b", name: "Llama 3.1 405B" },
+    ],
+  },
+  {
+    id: "mistral",
+    name: "Mistral",
+    badge: "Mistral",
+    description: "Mistral Large, Mistral Medium, and Mixtral 8x7B",
+    models: [
+      { id: "mistral-large", name: "Mistral Large", badge: "Fast" },
+      { id: "mistral-medium", name: "Mistral Medium" },
+      { id: "mixtral-8x7b", name: "Mixtral 8x7B" },
+    ],
+  },
+  {
+    id: "deepseek",
+    name: "DeepSeek",
+    badge: "DeepSeek",
+    description: "DeepSeek-V3, DeepSeek-R1, and Coder models",
+    models: [
+      { id: "deepseek-v3", name: "DeepSeek-V3" },
+      { id: "deepseek-r1", name: "DeepSeek-R1", badge: "Reasoning" },
+      { id: "deepseek-coder", name: "DeepSeek Coder" },
+    ],
+  },
+  {
+    id: "ollama",
+    name: "Ollama",
+    badge: "Ollama",
+    description: "Self-hosted local model runner instances",
+    models: [
+      { id: "ollama-qwen-25", name: "Ollama Qwen 2.5" },
+      { id: "ollama-phi-3", name: "Ollama Phi-3" },
+      { id: "ollama-deepseek-r1", name: "Ollama DeepSeek-R1" },
+    ],
+  },
+  {
+    id: "custom",
+    name: "Custom Provider",
+    badge: "Custom Provider",
+    description: "Private internal LLM gateway deployments",
+    models: [
+      { id: "custom-gateway-v1", name: "Custom Enterprise Gateway LLM" },
+      { id: "private-finetune-v1", name: "Private Fine-Tuned v1" },
+    ],
+  },
 ];
+
+const AVAILABLE_MODELS = AI_PROVIDERS.flatMap((p) =>
+  p.models.map((m) => ({ id: m.id, name: m.name, provider: p.name, badge: m.badge || p.badge }))
+);
 
 export interface OrgMemberItem {
   id: string;
@@ -328,7 +446,7 @@ const mockOrgMembers: Record<string, OrgMemberItem[]> = {
 
 export default function OrganizationManagement() {
   const [organizations, setOrganizations] = useState<OrganizationItem[]>(mockOrganizations);
-  const [viewState, setViewState] = useState<"list" | "detail">("list");
+  const [viewState, setViewState] = useState<"list" | "detail" | "form">("list");
   const [selectedOrg, setSelectedOrg] = useState<OrganizationItem | null>(null);
 
   // Members Tab Data & State
@@ -435,6 +553,34 @@ export default function OrganizationManagement() {
   const [formDescription, setFormDescription] = useState("");
   const [formModelSelectionType, setFormModelSelectionType] = useState<"all" | "selected">("all");
   const [formSelectedModels, setFormSelectedModels] = useState<string[]>([]);
+  const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>(["openai", "anthropic"]);
+  const [collapsedProviderIds, setCollapsedProviderIds] = useState<string[]>([]);
+  const [modelSearchQuery, setModelSearchQuery] = useState("");
+
+  const getProviderIdsForModels = (modelNames: string[]): string[] => {
+    const providerIds = new Set<string>();
+    modelNames.forEach((modelName) => {
+      AI_PROVIDERS.forEach((provider) => {
+        if (provider.models.some((m) => m.name.toLowerCase() === modelName.toLowerCase())) {
+          providerIds.add(provider.id);
+        }
+      });
+    });
+    if (providerIds.size === 0) {
+      return ["openai", "anthropic"];
+    }
+    return Array.from(providerIds);
+  };
+
+  const filteredProviders = useMemo(() => {
+    if (!modelSearchQuery.trim()) return AI_PROVIDERS;
+    const q = modelSearchQuery.toLowerCase();
+    return AI_PROVIDERS.filter((p) => {
+      const providerMatches = p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
+      const modelMatches = p.models.some((m) => m.name.toLowerCase().includes(q));
+      return providerMatches || modelMatches;
+    });
+  }, [modelSearchQuery]);
   const [formCountry, setFormCountry] = useState("United States");
   const [formState, setFormState] = useState("California");
   const [formCity, setFormCity] = useState("");
@@ -819,6 +965,9 @@ export default function OrganizationManagement() {
     setFormDescription("");
     setFormModelSelectionType("all");
     setFormSelectedModels([]);
+    setSelectedProviderIds(["openai", "anthropic"]);
+    setCollapsedProviderIds([]);
+    setModelSearchQuery("");
     setFormCountry("United States");
     setFormState("California");
     setFormCity("");
@@ -829,7 +978,7 @@ export default function OrganizationManagement() {
     setFormAdminPhone("");
     setFormTouched(false);
     setIsSubmitting(false);
-    setShowCreateModal(true);
+    setViewState("form");
   };
 
   const handleOpenEditModal = (org: OrganizationItem) => {
@@ -838,7 +987,11 @@ export default function OrganizationManagement() {
     setFormName(org.name);
     setFormDescription(org.description || "");
     setFormModelSelectionType(org.modelSelectionType || "selected");
-    setFormSelectedModels(org.assignedModels.includes("All Models") ? [] : org.assignedModels);
+    const initialModels = org.assignedModels.includes("All Models") ? [] : org.assignedModels;
+    setFormSelectedModels(initialModels);
+    setSelectedProviderIds(getProviderIdsForModels(initialModels));
+    setCollapsedProviderIds([]);
+    setModelSearchQuery("");
     setFormCountry(org.country || "United States");
     setFormState(org.state || "California");
     setFormCity(org.city || "");
@@ -849,7 +1002,7 @@ export default function OrganizationManagement() {
     setFormAdminPhone(org.primaryAdminPhone || "");
     setFormTouched(false);
     setIsSubmitting(false);
-    setShowCreateModal(true);
+    setViewState("form");
   };
 
   const handleSaveOrganization = () => {
@@ -882,6 +1035,8 @@ export default function OrganizationManagement() {
         );
         setSelectedOrg(updatedOrg);
         toast.success(`Organization "${formName.trim()}" updated successfully!`);
+        setIsSubmitting(false);
+        setViewState("detail");
       } else {
         const newOrgId = `org-${Math.random().toString(36).substring(2, 10)}`;
         const newOrg: OrganizationItem = {
@@ -928,10 +1083,9 @@ export default function OrganizationManagement() {
         setHighlightedOrgId(newOrg.id);
         toast.success(`Organization "${newOrg.name}" created successfully! Verification email sent to ${formAdminEmail}.`);
         setTimeout(() => setHighlightedOrgId(null), 3000);
+        setIsSubmitting(false);
+        setViewState("list");
       }
-
-      setIsSubmitting(false);
-      setShowCreateModal(false);
     }, 400);
   };
 
@@ -979,7 +1133,619 @@ export default function OrganizationManagement() {
       {/* ========================================================================= */}
       {/* SCREEN 1: ORGANIZATIONS LISTING TABLE                                     */}
       {/* ========================================================================= */}
-      {viewState === "list" || !selectedOrg ? (
+      {/* ========================================================================= */}
+      {/* SCREEN 3: DEDICATED CREATE / EDIT ORGANIZATION PAGE                       */}
+      {/* ========================================================================= */}
+      {viewState === "form" ? (
+        <div className="space-y-6 animate-fadeIn pb-12">
+          {/* Back Navigation Button */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                if (isEditMode && selectedOrg) {
+                  setViewState("detail");
+                } else {
+                  setViewState("list");
+                }
+              }}
+              className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>{isEditMode ? "Back to Organization Detail" : "Back to Organizations"}</span>
+            </button>
+          </div>
+
+          <PageHeader
+            pageId="organizations"
+            action={isEditMode ? "edit" : "create"}
+          />
+
+          {/* Form Container */}
+          <form onSubmit={(e) => { e.preventDefault(); handleSaveOrganization(); }} className="space-y-6 max-w-5xl">
+            {/* CARD 1: Organization Information */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
+              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-950/60 border border-primary-200/60 dark:border-primary-800/60 flex items-center justify-center text-primary-600 dark:text-primary-400">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
+                      Organization Information
+                    </h3>
+                    <p className="text-neutral-500 text-xs mt-0.5">
+                      Basic identity and descriptive scope for this tenant organization.
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-primary-50 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 border border-primary-200/50">
+                  Enterprise Config
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+                {/* Organization Name */}
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                    Organization Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="Enter Organization Name (e.g. CyberShield Ltd, Acme Corp)"
+                    maxLength={100}
+                    className={`w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all ${
+                      formTouched && (!formName.trim() || isDuplicateName)
+                        ? "border-rose-500 bg-rose-50/20"
+                        : "border-neutral-300 dark:border-neutral-700"
+                    }`}
+                  />
+                  <div className="flex items-center justify-between mt-1 text-[11px]">
+                    {formName.trim() === "" && formTouched ? (
+                      <span className="text-rose-500 font-medium">Organization Name is required.</span>
+                    ) : isDuplicateName ? (
+                      <span className="text-rose-500 font-medium">An Organization with this name already exists.</span>
+                    ) : (
+                      <span className="text-neutral-400">Must be unique across your Gateway instance.</span>
+                    )}
+                    <span className="text-neutral-400 font-mono">{formName.length}/100</span>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                    Description <span className="text-neutral-400 font-normal">(Optional)</span>
+                  </label>
+                  <textarea
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    placeholder="Describe the department, unit, or team scope of this organization..."
+                    maxLength={300}
+                    rows={3}
+                    className="w-full p-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* CARD 2: Models Access Assignment (Provider First Workflow) */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
+              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/60 border border-purple-200/60 dark:border-purple-800/60 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                    <Cpu className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
+                      Models Access Assignment
+                    </h3>
+                    <p className="text-neutral-500 text-xs mt-0.5">
+                      Configure AI providers and specific LLM models assigned to this organization.
+                    </p>
+                  </div>
+                </div>
+                {formModelSelectionType === "selected" && (
+                  <span className="text-xs font-bold text-primary-600 bg-primary-50 dark:bg-primary-950/60 px-3 py-1 rounded-full border border-primary-200/50">
+                    {formSelectedModels.length} {formSelectedModels.length === 1 ? "Model" : "Models"} Selected
+                  </span>
+                )}
+              </div>
+
+              {/* Provider First Workflow */}
+              <div className="space-y-4 pt-1">
+                <div className="flex items-center gap-6 text-xs">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium">
+                    <input
+                      type="radio"
+                      name="modelSelectionType"
+                      checked={formModelSelectionType === "all"}
+                      onChange={() => setFormModelSelectionType("all")}
+                      className="w-4 h-4 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span>All Available Models</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer font-medium">
+                    <input
+                      type="radio"
+                      name="modelSelectionType"
+                      checked={formModelSelectionType === "selected"}
+                      onChange={() => {
+                        setFormModelSelectionType("selected");
+                        if (selectedProviderIds.length === 0) {
+                          setSelectedProviderIds(["openai", "anthropic"]);
+                        }
+                      }}
+                      className="w-4 h-4 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span>Selected Models</span>
+                  </label>
+                </div>
+
+                {formModelSelectionType === "selected" && (
+                  <div className="space-y-4 p-4 bg-neutral-50/70 dark:bg-neutral-900/60 border border-neutral-200 dark:border-neutral-800 rounded-xl animate-fadeIn">
+                    {/* Search Input for Providers & Models */}
+                    <div className="relative">
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                      <input
+                        type="text"
+                        value={modelSearchQuery}
+                        onChange={(e) => setModelSearchQuery(e.target.value)}
+                        placeholder="Search AI Provider or Model Name (e.g. OpenAI, GPT-4o, Claude)..."
+                        className="w-full h-9 pl-9 pr-8 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder:text-neutral-400"
+                      />
+                      {modelSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setModelSearchQuery("")}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* STEP 1: Select AI Providers */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider text-[10px]">
+                          Select Provider <span className="text-rose-500">*</span>
+                        </span>
+                        {selectedProviderIds.length > 0 && (
+                          <span className="text-[11px] font-medium text-neutral-500">
+                            {selectedProviderIds.length} {selectedProviderIds.length === 1 ? "Provider" : "Providers"} Active
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                        {filteredProviders.map((provider) => {
+                          const isSelected = selectedProviderIds.includes(provider.id);
+                          const providerModelNames = provider.models.map(m => m.name);
+                          const selectedModelsForProviderCount = formSelectedModels.filter(m => providerModelNames.includes(m)).length;
+
+                          return (
+                            <div
+                              key={provider.id}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedProviderIds(prev => prev.filter(id => id !== provider.id));
+                                } else {
+                                  setSelectedProviderIds(prev => [...prev, provider.id]);
+                                }
+                              }}
+                              className={`p-3 rounded-xl border transition-all cursor-pointer select-none ${
+                                isSelected
+                                  ? "bg-white dark:bg-neutral-900 border-primary-500 ring-2 ring-primary-500/20 shadow-2xs"
+                                  : "bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700"
+                              }`}
+                            >
+                              <div className="flex items-start gap-2.5">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 mt-0.5"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span className="font-bold text-xs text-neutral-900 dark:text-white truncate">
+                                      {provider.name}
+                                    </span>
+                                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200/50 flex-shrink-0">
+                                      {provider.models.length} Models
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5 line-clamp-1">
+                                    {isSelected ? (
+                                      <span className="font-medium text-primary-600 dark:text-primary-400">
+                                        {selectedModelsForProviderCount} of {provider.models.length} selected
+                                      </span>
+                                    ) : (
+                                      provider.description
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* STEP 2: Provider-Specific Collapsible Model Sections */}
+                    <div className="space-y-3 pt-2">
+                      <div className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider text-[10px]">
+                        Available Models by Provider
+                      </div>
+
+                      {selectedProviderIds.length === 0 ? (
+                        <div className="p-6 text-center bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl space-y-1">
+                          <Cpu className="w-8 h-8 text-neutral-300 dark:text-neutral-700 mx-auto" />
+                          <div className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+                            No Provider Selected
+                          </div>
+                          <p className="text-[11px] text-neutral-400">
+                            Select one or more providers above to view available models.
+                          </p>
+                        </div>
+                      ) : (
+                        selectedProviderIds.map((providerId) => {
+                          const provider = AI_PROVIDERS.find(p => p.id === providerId);
+                          if (!provider) return null;
+
+                          const isCollapsed = collapsedProviderIds.includes(providerId) && !modelSearchQuery.trim();
+                          const providerModelNames = provider.models.map(m => m.name);
+                          const matchingModels = provider.models.filter(m => 
+                            !modelSearchQuery.trim() || 
+                            m.name.toLowerCase().includes(modelSearchQuery.toLowerCase()) || 
+                            provider.name.toLowerCase().includes(modelSearchQuery.toLowerCase())
+                          );
+
+                          const selectedInProviderCount = formSelectedModels.filter(m => providerModelNames.includes(m)).length;
+
+                          return (
+                            <div
+                              key={providerId}
+                              className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-2xs transition-all"
+                            >
+                              {/* Collapsible Header */}
+                              <div
+                                onClick={() => {
+                                  setCollapsedProviderIds(prev => 
+                                    prev.includes(providerId) ? prev.filter(id => id !== providerId) : [...prev, providerId]
+                                  );
+                                }}
+                                className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200/60 dark:border-neutral-800 cursor-pointer select-none"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <ChevronDown
+                                    className={`w-4 h-4 text-neutral-400 transition-transform duration-200 ${
+                                      isCollapsed ? "-rotate-90" : ""
+                                    }`}
+                                  />
+                                  <span className="font-bold text-xs text-neutral-900 dark:text-white">
+                                    {provider.name}
+                                  </span>
+                                  <span className="text-[11px] font-semibold text-primary-600 bg-primary-50 dark:bg-primary-950/50 px-2 py-0.5 rounded-full border border-primary-200/50">
+                                    {selectedInProviderCount} / {provider.models.length} Selected
+                                  </span>
+                                </div>
+
+                                {/* Actions: Select All & Clear */}
+                                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormSelectedModels(prev => {
+                                        const existingWithoutProvider = prev.filter(m => !providerModelNames.includes(m));
+                                        return [...existingWithoutProvider, ...providerModelNames];
+                                      });
+                                    }}
+                                    className="text-[11px] font-bold text-primary-600 dark:text-primary-400 hover:underline px-2 py-1 rounded bg-primary-50 dark:bg-primary-950/40 border border-primary-200/50"
+                                  >
+                                    Select All
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormSelectedModels(prev => prev.filter(m => !providerModelNames.includes(m)));
+                                    }}
+                                    className="text-[11px] font-semibold text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 hover:underline px-1.5 py-1"
+                                  >
+                                    Clear
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Collapsible Models Grid */}
+                              {!isCollapsed && (
+                                <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 animate-fadeIn">
+                                  {matchingModels.length === 0 ? (
+                                    <div className="col-span-full py-4 text-center text-[11px] text-neutral-400">
+                                      No models match your search for {provider.name}.
+                                    </div>
+                                  ) : (
+                                    matchingModels.map((m) => {
+                                      const isChecked = formSelectedModels.includes(m.name);
+                                      return (
+                                        <label
+                                          key={m.id}
+                                          className={`flex items-center justify-between p-2 rounded-lg border transition-all cursor-pointer ${
+                                            isChecked
+                                              ? "bg-primary-50/40 dark:bg-primary-950/20 border-primary-300 dark:border-primary-800"
+                                              : "bg-neutral-50/50 dark:bg-neutral-900/40 border-neutral-200/80 dark:border-neutral-800 hover:bg-neutral-100/60"
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <input
+                                              type="checkbox"
+                                              checked={isChecked}
+                                              onChange={(e) => {
+                                                if (e.target.checked) {
+                                                  setFormSelectedModels(prev => [...prev, m.name]);
+                                                } else {
+                                                  setFormSelectedModels(prev => prev.filter(x => x !== m.name));
+                                                }
+                                              }}
+                                              className="w-3.5 h-3.5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 flex-shrink-0"
+                                            />
+                                            <span className="font-semibold text-neutral-800 dark:text-neutral-200 text-[11px] truncate">
+                                              {m.name}
+                                            </span>
+                                          </div>
+                                          {m.badge && (
+                                            <span className="text-[9px] font-bold text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded border border-neutral-200/50 flex-shrink-0">
+                                              {m.badge}
+                                            </span>
+                                          )}
+                                        </label>
+                                      );
+                                    })
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* STEP 3: Selected Models Summary Bar */}
+                    {selectedProviderIds.length > 0 && (
+                      <div className="p-3 bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl space-y-2 text-xs">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider text-[10px]">
+                            Selected Models Summary
+                          </span>
+                          <span className="font-bold text-primary-600 dark:text-primary-400">
+                            Total Selected Models: {formSelectedModels.length} Models
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          {selectedProviderIds.map((providerId) => {
+                            const provider = AI_PROVIDERS.find(p => p.id === providerId);
+                            if (!provider) return null;
+                            const providerModelNames = provider.models.map(m => m.name);
+                            const count = formSelectedModels.filter(m => providerModelNames.includes(m)).length;
+
+                            return (
+                              <span
+                                key={providerId}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700"
+                              >
+                                <span>{provider.name}</span>
+                                <span className="text-primary-600 dark:text-primary-400">({count})</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* CARD 3: Address & Regional Settings */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
+              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
+                    Address & Regional Details
+                  </h3>
+                  <p className="text-neutral-500 text-xs mt-0.5">
+                    Geographic origin and contact numbers for compliance and billing.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+                {/* Country */}
+                <div className="space-y-1.5">
+                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                    Country <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={formCountry}
+                    onChange={(e) => setFormCountry(e.target.value)}
+                    className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500"
+                  >
+                    {Object.keys(COUNTRIES_AND_STATES).map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* State */}
+                <div className="space-y-1.5">
+                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                    State / Province <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={formState}
+                    onChange={(e) => setFormState(e.target.value)}
+                    className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500"
+                  >
+                    {(COUNTRIES_AND_STATES[formCountry] || []).map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* City */}
+                <div className="space-y-1.5">
+                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">City</label>
+                  <input
+                    type="text"
+                    value={formCity}
+                    onChange={(e) => setFormCity(e.target.value)}
+                    placeholder="e.g. San Francisco, London"
+                    className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+
+                {/* ZIP Code */}
+                <div className="space-y-1.5">
+                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">ZIP / Postal Code</label>
+                  <input
+                    type="text"
+                    value={formZipCode}
+                    onChange={(e) => setFormZipCode(e.target.value)}
+                    placeholder="e.g. 94105, EC1A 1BB"
+                    className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+
+                {/* Phone */}
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">Organization Phone</label>
+                  <input
+                    type="text"
+                    value={formPhone}
+                    onChange={(e) => setFormPhone(e.target.value)}
+                    placeholder="e.g. +1 (555) 234-5678"
+                    className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* CARD 4: Primary Administrator */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
+              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                  <UserPlus className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
+                    Primary Administrator Details
+                  </h3>
+                  <p className="text-neutral-500 text-xs mt-0.5">
+                    Assign the root administrator responsible for managing organization access.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+                {/* Admin Name */}
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                    Full Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formAdminName}
+                    onChange={(e) => setFormAdminName(e.target.value)}
+                    placeholder="e.g. John Doe, Sarah Connor"
+                    className={`w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 transition-all ${
+                      formTouched && !formAdminName.trim() ? "border-rose-500 bg-rose-50/20" : "border-neutral-300 dark:border-neutral-700"
+                    }`}
+                  />
+                  {formTouched && !formAdminName.trim() && (
+                    <p className="text-[11px] font-semibold text-rose-500">Primary Admin Name is required.</p>
+                  )}
+                </div>
+
+                {/* Admin Email */}
+                <div className="space-y-1.5">
+                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                    Email Address <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={formAdminEmail}
+                    onChange={(e) => setFormAdminEmail(e.target.value)}
+                    placeholder="e.g. admin@company.com"
+                    className={`w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 transition-all ${
+                      formTouched && !formAdminEmail.trim() ? "border-rose-500 bg-rose-50/20" : "border-neutral-300 dark:border-neutral-700"
+                    }`}
+                  />
+                  {formTouched && !formAdminEmail.trim() && (
+                    <p className="text-[11px] font-semibold text-rose-500">Primary Admin Email is required.</p>
+                  )}
+                </div>
+
+                {/* Admin Phone */}
+                <div className="space-y-1.5">
+                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                    Direct Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formAdminPhone}
+                    onChange={(e) => setFormAdminPhone(e.target.value)}
+                    placeholder="e.g. +1 (555) 019-2831"
+                    className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-neutral-50 dark:bg-neutral-850/60 rounded-lg flex items-start gap-2.5 border border-neutral-200/60 dark:border-neutral-800">
+                <ShieldCheck className="w-4 h-4 text-primary-600 flex-shrink-0 mt-0.5" />
+                <p className="text-neutral-600 dark:text-neutral-400 text-[11px] leading-relaxed">
+                  An automated onboarding email will be sent to the primary administrator with instructions to set their password and log in to the Organization Portal.
+                </p>
+              </div>
+            </div>
+
+            {/* Form Actions Bar */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-2xs flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isEditMode && selectedOrg) {
+                    setViewState("detail");
+                  } else {
+                    setViewState("list");
+                  }
+                }}
+                className="px-5 py-2 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+              >
+                Cancel
+              </button>
+
+              <PrimaryButton
+                icon={Save}
+                type="submit"
+                disabled={!isFormValid || isSubmitting}
+              >
+                {isSubmitting
+                  ? "Saving Organization..."
+                  : isEditMode
+                    ? "Save Changes"
+                    : "Create Organization"}
+              </PrimaryButton>
+            </div>
+          </form>
+        </div>
+      ) : viewState === "list" || !selectedOrg ? (
         <>
           <PageHeader
             pageId="organizations"
@@ -2041,310 +2807,6 @@ export default function OrganizationManagement() {
             )}
           </div>
         )
-      )}
-
-      {/* ========================================================================= */}
-      {/* EXTENDED CREATE / EDIT ORGANIZATION MODAL                                 */}
-      {/* ========================================================================= */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh] overflow-hidden my-auto">
-            {/* Modal Sticky Header */}
-            <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between flex-shrink-0 bg-neutral-50/50 dark:bg-neutral-900/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-950/60 border border-primary-200/60 dark:border-primary-800/60 flex items-center justify-center text-primary-600 dark:text-primary-400">
-                  <Building2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-                    {isEditMode ? "Edit Organization Settings" : "Create Organization"}
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300">
-                      Enterprise Config
-                    </span>
-                  </h3>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-                    Create an organization and configure default budgets, models, rate limits, and object permissions.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                title="Close Modal"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Modal Scrollable Body */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-6 text-xs custom-scrollbar">
-              {/* SECTION 1 — ORGANIZATION INFORMATION */}
-              <div className="bg-neutral-50/50 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800 rounded-xl p-4 space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
-                  <Building2 className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                  <h4 className="font-bold text-sm text-neutral-900 dark:text-white">
-                    Organization Information
-                  </h4>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Organization Name */}
-                  <div className="space-y-1 md:col-span-2">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Organization Name <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formName}
-                      onChange={(e) => setFormName(e.target.value)}
-                      placeholder="Enter Organization Name (e.g. Spine CloudIQ)"
-                      maxLength={100}
-                      className={`w-full h-10 px-3 bg-white dark:bg-neutral-950 border rounded-lg text-xs font-medium text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 transition-all ${
-                        formTouched && (!formName.trim() || isDuplicateName)
-                          ? "border-rose-500 focus:ring-rose-500/20"
-                          : "border-neutral-300 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500/20"
-                      }`}
-                    />
-                    <div className="flex items-center justify-between mt-1 text-[11px]">
-                      {formName.trim() === "" && formTouched ? (
-                        <span className="text-rose-500 font-medium">Organization Name is required.</span>
-                      ) : isDuplicateName ? (
-                        <span className="text-rose-500 font-medium">An Organization with this name already exists.</span>
-                      ) : (
-                        <span className="text-neutral-400">Must be unique across your Gateway instance.</span>
-                      )}
-                      <span className="text-neutral-400 font-mono">{formName.length}/100</span>
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <div className="space-y-1 md:col-span-2">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Description <span className="text-neutral-400 font-normal">(Optional)</span>
-                    </label>
-                    <textarea
-                      value={formDescription}
-                      onChange={(e) => setFormDescription(e.target.value)}
-                      placeholder="Describe the department, unit, or team scope of this organization..."
-                      maxLength={300}
-                      rows={2}
-                      className="w-full p-2.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all resize-none"
-                    />
-                  </div>
-
-                  {/* AI Model Selection */}
-                  <div className="space-y-3 md:col-span-2 pt-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Models Access Assignment
-                    </label>
-                    <div className="flex items-center gap-6 text-xs">
-                      <label className="flex items-center gap-2 cursor-pointer font-medium">
-                        <input
-                          type="radio"
-                          name="modelSelectionType"
-                          checked={formModelSelectionType === "all"}
-                          onChange={() => setFormModelSelectionType("all")}
-                          className="w-4 h-4 text-primary-600 focus:ring-primary-500"
-                        />
-                        <span>All Available Models</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer font-medium">
-                        <input
-                          type="radio"
-                          name="modelSelectionType"
-                          checked={formModelSelectionType === "selected"}
-                          onChange={() => setFormModelSelectionType("selected")}
-                          className="w-4 h-4 text-primary-600 focus:ring-primary-500"
-                        />
-                        <span>Selected Models</span>
-                      </label>
-                    </div>
-
-                    {formModelSelectionType === "selected" && (
-                      <div className="p-3 bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {AVAILABLE_MODELS.map((m) => {
-                          const isChecked = formSelectedModels.includes(m.name);
-                          return (
-                            <label key={m.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-neutral-50 dark:hover:bg-neutral-900 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setFormSelectedModels(prev => [...prev, m.name]);
-                                  } else {
-                                    setFormSelectedModels(prev => prev.filter(x => x !== m.name));
-                                  }
-                                }}
-                                className="w-3.5 h-3.5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                              />
-                              <span className="font-medium text-neutral-800 dark:text-neutral-200 text-[11px]">{m.name}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Address Section Header */}
-                  <div className="md:col-span-2 pt-2 border-t border-neutral-200/60 dark:border-neutral-800">
-                    <h5 className="font-bold text-xs text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-2">
-                      Address Details
-                    </h5>
-                  </div>
-
-                  {/* Country */}
-                  <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Country <span className="text-rose-500">*</span>
-                    </label>
-                    <select
-                      value={formCountry}
-                      onChange={(e) => setFormCountry(e.target.value)}
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                    >
-                      {Object.keys(COUNTRIES_AND_STATES).map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* State */}
-                  <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      State / Province <span className="text-rose-500">*</span>
-                    </label>
-                    <select
-                      value={formState}
-                      onChange={(e) => setFormState(e.target.value)}
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                    >
-                      {(COUNTRIES_AND_STATES[formCountry] || []).map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* City */}
-                  <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">City</label>
-                    <input
-                      type="text"
-                      value={formCity}
-                      onChange={(e) => setFormCity(e.target.value)}
-                      placeholder="City"
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                    />
-                  </div>
-
-                  {/* ZIP Code */}
-                  <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">ZIP / Postal Code</label>
-                    <input
-                      type="text"
-                      value={formZipCode}
-                      onChange={(e) => setFormZipCode(e.target.value)}
-                      placeholder="Postal Code"
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                    />
-                  </div>
-
-                  {/* Phone */}
-                  <div className="space-y-1 md:col-span-2">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">Phone Number</label>
-                    <input
-                      type="text"
-                      value={formPhone}
-                      onChange={(e) => setFormPhone(e.target.value)}
-                      placeholder="+1 (555) 000-0000"
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 2 — PRIMARY ADMINISTRATOR */}
-              <div className="bg-neutral-50/50 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800 rounded-xl p-4 space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
-                  <ShieldCheck className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                  <h4 className="font-bold text-sm text-neutral-900 dark:text-white">
-                    Primary Administrator
-                  </h4>
-                </div>
-
-                <div className="p-3 bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg text-[11px] text-blue-900 dark:text-blue-200">
-                  A verification email will be automatically sent to the Primary Administrator. The user verifies their email, sets their password, and activates their account.
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Admin Name */}
-                  <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Full Name <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formAdminName}
-                      onChange={(e) => setFormAdminName(e.target.value)}
-                      placeholder="Admin Full Name"
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                    />
-                  </div>
-
-                  {/* Admin Email */}
-                  <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Email Address <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={formAdminEmail}
-                      onChange={(e) => setFormAdminEmail(e.target.value)}
-                      placeholder="admin@company.com"
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                    />
-                  </div>
-
-                  {/* Admin Phone */}
-                  <div className="space-y-1 md:col-span-2">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Direct Phone Number
-                    </label>
-                    <input
-                      type="text"
-                      value={formAdminPhone}
-                      onChange={(e) => setFormAdminPhone(e.target.value)}
-                      placeholder="+1 (555) 019-2831"
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Sticky Footer */}
-            <div className="px-6 py-4 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between flex-shrink-0 bg-neutral-50/80 dark:bg-neutral-900/80">
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-              >
-                Cancel
-              </button>
-
-              <PrimaryButton
-                onClick={handleSaveOrganization}
-                disabled={!isFormValid || isSubmitting}
-              >
-                {isSubmitting
-                  ? "Saving Organization..."
-                  : isEditMode
-                  ? "Update Organization"
-                  : "Create Organization"}
-              </PrimaryButton>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* FILTER DRAWER MODAL */}
