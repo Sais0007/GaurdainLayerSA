@@ -604,7 +604,7 @@ export default function OrganizationManagement() {
     { key: "orgId", label: "Organization ID" },
     { key: "name", label: "Organization Name" },
     { key: "createdDate", label: "Created Date" },
-    { key: "currentSpend", label: "Lifetime Spend (USD)" },
+    { key: "currentSpend", label: "Total Spend (USD)" },
     { key: "assignedModels", label: "Models" },
     { key: "tpmLimit", label: "TPM Limit" },
     { key: "rpmLimit", label: "RPM Limit" },
@@ -1905,7 +1905,7 @@ export default function OrganizationManagement() {
                     )}
 
                     {visibleColumns.createdDate && <th className="py-3 px-4">Created Date</th>}
-                    {visibleColumns.currentSpend && <th className="py-3 px-4 text-right">Lifetime Spend (USD)</th>}
+                    {visibleColumns.currentSpend && <th className="py-3 px-4 text-right">Total Spend (USD)</th>}
                     {visibleColumns.assignedModels && <th className="py-3 px-4">Models</th>}
                     {visibleColumns.tpmLimit && <th className="py-3 px-4">TPM Limit</th>}
                     {visibleColumns.rpmLimit && <th className="py-3 px-4">RPM Limit</th>}
@@ -2277,7 +2277,7 @@ export default function OrganizationManagement() {
 
                 <div className="flex items-center gap-4 text-xs">
                   <div className="text-right">
-                    <div className="text-neutral-400 font-medium">Lifetime Spend</div>
+                    <div className="text-neutral-400 font-medium">Total Spend</div>
                     <div className="text-xl font-bold text-neutral-900 dark:text-white font-mono">${selectedOrg.currentSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
                   </div>
                 </div>
@@ -2318,7 +2318,7 @@ export default function OrganizationManagement() {
                   <div className="font-semibold text-primary-600">{selectedOrg.membersCount} Active Members</div>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-neutral-400 font-medium mb-1">Lifetime Spend</div>
+                  <div className="text-neutral-400 font-medium mb-1">Total Spend</div>
                   <div className="font-mono font-semibold text-neutral-900 dark:text-white">${selectedOrg.currentSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
                 </div>
               </div>
