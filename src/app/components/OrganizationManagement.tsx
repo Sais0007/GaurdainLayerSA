@@ -45,6 +45,8 @@ import {
   Pagination, 
   PrimaryButton, 
   ColumnVisibilityPanel, 
+  AssignedModelsDrawer,
+  MultiSelectSearchableDropdown,
   type ColumnConfig
 } from "./hb/listing";
 
@@ -119,6 +121,8 @@ const mockOrganizations: OrganizationItem[] = [
     mcpServers: ["mcp-auth-gateway", "mcp-db-connector"],
     metadata: '{\n  "environment": "production",\n  "tier": "enterprise"\n}',
     createdBy: "superadmin@spinecloudiq.com",
+    lastUpdatedOn: "Jul 28, 2026",
+    updatedBy: "superadmin@spinecloudiq.com",
   },
   {
     id: "org-102",
@@ -146,6 +150,8 @@ const mockOrganizations: OrganizationItem[] = [
     mcpServers: ["mcp-k8s-agent"],
     metadata: '{\n  "dept": "devops"\n}',
     createdBy: "hbadmin@yopmail.com",
+    lastUpdatedOn: "Jul 29, 2026",
+    updatedBy: "hbadmin@yopmail.com",
   },
   {
     id: "org-103",
@@ -173,6 +179,8 @@ const mockOrganizations: OrganizationItem[] = [
     mcpServers: ["mcp-siem-bridge"],
     metadata: '{\n  "compliance": "hipaa-soc2"\n}',
     createdBy: "sarah.connor@hb.com",
+    lastUpdatedOn: "Jul 30, 2026",
+    updatedBy: "sarah.connor@hb.com",
   },
   {
     id: "org-104",
@@ -200,6 +208,8 @@ const mockOrganizations: OrganizationItem[] = [
     mcpServers: [],
     metadata: "",
     createdBy: "alex.dev@hb.com",
+    lastUpdatedOn: "Jul 26, 2026",
+    updatedBy: "alex.dev@hb.com",
   },
   {
     id: "org-105",
@@ -227,6 +237,8 @@ const mockOrganizations: OrganizationItem[] = [
     mcpServers: [],
     metadata: '{\n  "audit": "active"\n}',
     createdBy: "michael.scott@hb.com",
+    lastUpdatedOn: "Jul 27, 2026",
+    updatedBy: "michael.scott@hb.com",
   },
 ];
 
@@ -234,6 +246,12 @@ export interface AIModelItem {
   id: string;
   name: string;
   badge?: string;
+}
+
+export interface ActiveProviderCard {
+  providerId: string;
+  providerName: string;
+  selectedModels: string[];
 }
 
 export interface AIProviderItem {
@@ -362,8 +380,27 @@ export interface OrgMemberItem {
   email: string;
   role: "Organization Admin" | "Internal User" | "Internal User Viewer";
   currentSpend: number;
+  createdDate: string;
   joinedDate: string;
   status: "Active" | "Inactive" | "Pending Invitation";
+}
+
+export interface OrgModelItem {
+  id: string;
+  provider: string;
+  modelName: string;
+  modelAlias: string;
+  status: "Active" | "Inactive";
+  addedOn: string;
+}
+
+export interface OrgTeamItem {
+  id: string;
+  name: string;
+  membersCount: number;
+  spend: number;
+  createdOn: string;
+  status: "Active" | "Inactive";
 }
 
 const mockSystemUsers = [
@@ -386,6 +423,7 @@ const mockOrgMembers: Record<string, OrgMemberItem[]> = {
       email: "superadmin@spinecloudiq.com",
       role: "Organization Admin",
       currentSpend: 1450.00,
+      createdDate: "May 10, 2026",
       joinedDate: "Jul 15, 2026",
       status: "Active",
     },
@@ -396,6 +434,7 @@ const mockOrgMembers: Record<string, OrgMemberItem[]> = {
       email: "sarah.connor@hb.com",
       role: "Organization Admin",
       currentSpend: 890.50,
+      createdDate: "May 14, 2026",
       joinedDate: "Jul 16, 2026",
       status: "Active",
     },
@@ -406,6 +445,7 @@ const mockOrgMembers: Record<string, OrgMemberItem[]> = {
       email: "alex.dev@hb.com",
       role: "Internal User",
       currentSpend: 620.00,
+      createdDate: "Jun 01, 2026",
       joinedDate: "Jul 18, 2026",
       status: "Active",
     },
@@ -416,6 +456,7 @@ const mockOrgMembers: Record<string, OrgMemberItem[]> = {
       email: "michael.scott@hb.com",
       role: "Internal User Viewer",
       currentSpend: 0,
+      createdDate: "Jun 12, 2026",
       joinedDate: "Jul 20, 2026",
       status: "Inactive",
     },
@@ -426,6 +467,7 @@ const mockOrgMembers: Record<string, OrgMemberItem[]> = {
       email: "emily.watson@yopmail.com",
       role: "Internal User",
       currentSpend: 0,
+      createdDate: "Jul 05, 2026",
       joinedDate: "Jul 25, 2026",
       status: "Pending Invitation",
     },
@@ -438,9 +480,58 @@ const mockOrgMembers: Record<string, OrgMemberItem[]> = {
       email: "hbadmin@yopmail.com",
       role: "Organization Admin",
       currentSpend: 1850.00,
+      createdDate: "Jun 10, 2026",
       joinedDate: "Jul 18, 2026",
       status: "Active",
     },
+  ],
+};
+
+export const mockOrgModels: Record<string, OrgModelItem[]> = {
+  "org-101": [
+    { id: "mod-101", provider: "OpenAI", modelName: "GPT-4.1", modelAlias: "gpt-4.1-enterprise", status: "Active", addedOn: "Jul 15, 2026" },
+    { id: "mod-102", provider: "Anthropic", modelName: "Claude 3.5 Sonnet", modelAlias: "claude-3.5-sonnet-main", status: "Active", addedOn: "Jul 15, 2026" },
+    { id: "mod-103", provider: "Google", modelName: "Gemini 1.5 Pro", modelAlias: "gemini-1.5-pro-prod", status: "Active", addedOn: "Jul 16, 2026" },
+    { id: "mod-104", provider: "Meta", modelName: "Llama 3 70B", modelAlias: "llama-3-70b-local", status: "Active", addedOn: "Jul 18, 2026" },
+  ],
+  "org-102": [
+    { id: "mod-105", provider: "OpenAI", modelName: "GPT-4o", modelAlias: "gpt-4o-default", status: "Active", addedOn: "Jul 18, 2026" },
+    { id: "mod-106", provider: "Anthropic", modelName: "Claude 3.5 Sonnet", modelAlias: "claude-3.5-sonnet-dev", status: "Active", addedOn: "Jul 18, 2026" },
+    { id: "mod-107", provider: "OpenAI", modelName: "Codex Mini", modelAlias: "codex-mini-code", status: "Active", addedOn: "Jul 19, 2026" },
+  ],
+  "org-103": [
+    { id: "mod-108", provider: "Anthropic", modelName: "Claude 3.5 Sonnet", modelAlias: "claude-3.5-sec", status: "Active", addedOn: "Jul 20, 2026" },
+    { id: "mod-109", provider: "Mistral", modelName: "Mistral Large", modelAlias: "mistral-large-sec", status: "Active", addedOn: "Jul 20, 2026" },
+  ],
+  "org-104": [
+    { id: "mod-110", provider: "OpenAI", modelName: "GPT-4.1", modelAlias: "gpt-4.1-fin", status: "Active", addedOn: "Jul 22, 2026" },
+    { id: "mod-111", provider: "Google", modelName: "Gemini 2.5 Pro", modelAlias: "gemini-2.5-fin", status: "Active", addedOn: "Jul 22, 2026" },
+    { id: "mod-112", provider: "DeepSeek", modelName: "DeepSeek-R1", modelAlias: "deepseek-r1-math", status: "Active", addedOn: "Jul 23, 2026" },
+  ],
+  "org-105": [
+    { id: "mod-113", provider: "OpenAI", modelName: "GPT-4o", modelAlias: "gpt-4o-health", status: "Active", addedOn: "Jul 24, 2026" },
+    { id: "mod-114", provider: "Google", modelName: "Gemini 1.5 Pro", modelAlias: "gemini-1.5-health", status: "Active", addedOn: "Jul 24, 2026" },
+  ],
+};
+
+export const mockOrgTeams: Record<string, OrgTeamItem[]> = {
+  "org-101": [
+    { id: "tm-101", name: "Security Operations", membersCount: 12, spend: 1245.50, createdOn: "Jul 16, 2026", status: "Active" },
+    { id: "tm-102", name: "AI Research Lab", membersCount: 18, spend: 985.20, createdOn: "Jul 17, 2026", status: "Active" },
+    { id: "tm-103", name: "DevOps Core", membersCount: 8, spend: 450.00, createdOn: "Jul 18, 2026", status: "Active" },
+  ],
+  "org-102": [
+    { id: "tm-104", name: "DevOps Automated Lab", membersCount: 10, spend: 1100.00, createdOn: "Jul 18, 2026", status: "Active" },
+    { id: "tm-105", name: "CloudIQ Infrastructure", membersCount: 8, spend: 750.00, createdOn: "Jul 19, 2026", status: "Active" },
+  ],
+  "org-103": [
+    { id: "tm-106", name: "SecOps Vulnerability Unit", membersCount: 7, spend: 890.25, createdOn: "Jul 20, 2026", status: "Active" },
+  ],
+  "org-104": [
+    { id: "tm-107", name: "Quant Modeling Sandbox", membersCount: 8, spend: 0.00, createdOn: "Jul 22, 2026", status: "Inactive" },
+  ],
+  "org-105": [
+    { id: "tm-108", name: "Clinical Diagnostics Lab", membersCount: 15, spend: 4200.00, createdOn: "Jul 24, 2026", status: "Active" },
   ],
 };
 
@@ -485,7 +576,9 @@ export default function OrganizationManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState("All");
-  const [filterModel, setFilterModel] = useState("All");
+  const [filterModels, setFilterModels] = useState<string[]>([]);
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
 
   // Summary KPI Visibility State
   const [showSummary, setShowSummary] = useState(true);
@@ -548,6 +641,22 @@ export default function OrganizationManagement() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [highlightedOrgId, setHighlightedOrgId] = useState<string | null>(null);
 
+  // Assigned Models Right Drawer State
+  const [modelsDrawerOrg, setModelsDrawerOrg] = useState<OrganizationItem | null>(null);
+  const [showModelsDrawer, setShowModelsDrawer] = useState(false);
+
+  const getModelCount = (item: OrganizationItem): number => {
+    if (item.modelSelectionType === "all" || item.assignedModels.includes("All Models")) {
+      return AVAILABLE_MODELS.length;
+    }
+    return item.assignedModels.length;
+  };
+
+  const getModelCountLabel = (item: OrganizationItem): string => {
+    const count = getModelCount(item);
+    return `${count} ${count === 1 ? "Model" : "Models"}`;
+  };
+
   // Extended Form State for Create / Edit Organization Modal
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
@@ -581,6 +690,46 @@ export default function OrganizationManagement() {
       return providerMatches || modelMatches;
     });
   }, [modelSearchQuery]);
+
+  const [activeProviderCards, setActiveProviderCards] = useState<ActiveProviderCard[]>([
+    { providerId: "openai", providerName: "OpenAI", selectedModels: ["GPT-4o", "GPT-4 Mini"] },
+    { providerId: "anthropic", providerName: "Anthropic", selectedModels: ["Claude 3.5 Sonnet"] },
+  ]);
+  const [showAddProviderDropdown, setShowAddProviderDropdown] = useState(false);
+
+  const availableProvidersToAdd = useMemo(() => {
+    return AI_PROVIDERS.filter((p) => !activeProviderCards.some((card) => card.providerId === p.id));
+  }, [activeProviderCards]);
+
+  const handleAddProviderCard = (p: typeof AI_PROVIDERS[0]) => {
+    if (activeProviderCards.some((card) => card.providerId === p.id)) return;
+    setActiveProviderCards((prev) => [
+      ...prev,
+      {
+        providerId: p.id,
+        providerName: p.name,
+        selectedModels: p.models.slice(0, 2).map((m) => m.name),
+      },
+    ]);
+    setShowAddProviderDropdown(false);
+  };
+
+  const handleRemoveProviderCard = (providerId: string) => {
+    setActiveProviderCards((prev) => prev.filter((card) => card.providerId !== providerId));
+  };
+
+  const handleUpdateCardModels = (providerId: string, newModels: string[]) => {
+    setActiveProviderCards((prev) =>
+      prev.map((card) => (card.providerId === providerId ? { ...card, selectedModels: newModels } : card))
+    );
+  };
+
+  const isProviderCardsValid = useMemo(() => {
+    if (formModelSelectionType === "all") return true;
+    if (activeProviderCards.length === 0) return false;
+    return activeProviderCards.every((card) => card.selectedModels.length > 0);
+  }, [formModelSelectionType, activeProviderCards]);
+
   const [formCountry, setFormCountry] = useState("United States");
   const [formState, setFormState] = useState("California");
   const [formCity, setFormCity] = useState("");
@@ -599,7 +748,33 @@ export default function OrganizationManagement() {
   const [importResults, setImportResults] = useState<{ success: number; failed: number; skipped: number } | null>(null);
 
   // Detail View Tab
-  const [detailTab, setDetailTab] = useState<"overview" | "members" | "settings">("overview");
+  const [detailTab, setDetailTab] = useState<"overview" | "members" | "models" | "teams">("overview");
+
+  // Detail View — Models Tab State
+  const [modelsTabSearchQuery, setModelsTabSearchQuery] = useState("");
+  const [modelsTabFilterProvider, setModelsTabFilterProvider] = useState("All");
+  const [modelsTabFilterStatus, setModelsTabFilterStatus] = useState("All");
+
+  // Detail View — Teams Tab State
+  const [teamsTabSearchQuery, setTeamsTabSearchQuery] = useState("");
+  const [teamsTabFilterStatus, setTeamsTabFilterStatus] = useState("All");
+
+  // Username resolver helper for Created By / Updated By
+  const getUserDisplayName = (val?: string): { name: string; email: string; fullText: string } => {
+    if (!val) return { name: "—", email: "", fullText: "—" };
+    const matched = mockSystemUsers.find(
+      (u) => u.email.toLowerCase() === val.toLowerCase() || u.name.toLowerCase() === val.toLowerCase()
+    );
+    if (matched) {
+      return { name: matched.name, email: matched.email, fullText: `${matched.name} (${matched.email})` };
+    }
+    if (val.includes("@")) {
+      const prefix = val.split("@")[0].replace(/[._]/g, " ");
+      const formatted = prefix.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+      return { name: formatted, email: val, fullText: `${formatted} (${val})` };
+    }
+    return { name: val, email: "", fullText: val };
+  };
 
   // Copy helper
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -887,14 +1062,35 @@ export default function OrganizationManagement() {
         (org.description && org.description.toLowerCase().includes(query));
 
       const matchesStatus = filterStatus === "All" || org.status === filterStatus;
-      const matchesModel =
-        filterModel === "All" ||
-        org.assignedModels.includes("All Models") ||
-        org.assignedModels.includes(filterModel);
 
-      return matchesSearch && matchesStatus && matchesModel;
+      const matchesModels =
+        filterModels.length === 0 ||
+        org.assignedModels.includes("All Models") ||
+        org.modelSelectionType === "all" ||
+        filterModels.some((selectedModel) =>
+          org.assignedModels.some((assigned) => assigned.toLowerCase() === selectedModel.toLowerCase())
+        );
+
+      let matchesDate = true;
+      if (filterStartDate || filterEndDate) {
+        const orgDate = new Date(org.createdDate).getTime();
+        if (filterStartDate) {
+          const startMs = new Date(filterStartDate + "T00:00:00").getTime();
+          if (!isNaN(orgDate) && !isNaN(startMs) && orgDate < startMs) {
+            matchesDate = false;
+          }
+        }
+        if (filterEndDate) {
+          const endMs = new Date(filterEndDate + "T23:59:59").getTime();
+          if (!isNaN(orgDate) && !isNaN(endMs) && orgDate > endMs) {
+            matchesDate = false;
+          }
+        }
+      }
+
+      return matchesSearch && matchesStatus && matchesModels && matchesDate;
     });
-  }, [organizations, searchQuery, filterStatus, filterModel]);
+  }, [organizations, searchQuery, filterStatus, filterModels, filterStartDate, filterEndDate]);
 
   // Sorted Organizations
   const sortedOrgs = useMemo(() => {
@@ -963,11 +1159,12 @@ export default function OrganizationManagement() {
     setSelectedOrg(null);
     setFormName("");
     setFormDescription("");
-    setFormModelSelectionType("all");
-    setFormSelectedModels([]);
-    setSelectedProviderIds(["openai", "anthropic"]);
-    setCollapsedProviderIds([]);
-    setModelSearchQuery("");
+    setFormModelSelectionType("selected");
+    setActiveProviderCards([
+      { providerId: "openai", providerName: "OpenAI", selectedModels: ["GPT-4o", "GPT-4 Mini"] },
+      { providerId: "anthropic", providerName: "Anthropic", selectedModels: ["Claude 3.5 Sonnet"] },
+    ]);
+    setShowAddProviderDropdown(false);
     setFormCountry("United States");
     setFormState("California");
     setFormCity("");
@@ -987,11 +1184,29 @@ export default function OrganizationManagement() {
     setFormName(org.name);
     setFormDescription(org.description || "");
     setFormModelSelectionType(org.modelSelectionType || "selected");
-    const initialModels = org.assignedModels.includes("All Models") ? [] : org.assignedModels;
-    setFormSelectedModels(initialModels);
-    setSelectedProviderIds(getProviderIdsForModels(initialModels));
-    setCollapsedProviderIds([]);
-    setModelSearchQuery("");
+    
+    const initialCards: ActiveProviderCard[] = [];
+    AI_PROVIDERS.forEach((p) => {
+      const pModelNames = p.models.map((m) => m.name);
+      const matched = org.assignedModels.filter((m) => pModelNames.includes(m));
+      if (matched.length > 0) {
+        initialCards.push({
+          providerId: p.id,
+          providerName: p.name,
+          selectedModels: matched,
+        });
+      }
+    });
+    if (initialCards.length === 0) {
+      initialCards.push({
+        providerId: "openai",
+        providerName: "OpenAI",
+        selectedModels: ["GPT-4o"],
+      });
+    }
+    setActiveProviderCards(initialCards);
+    setShowAddProviderDropdown(false);
+
     setFormCountry(org.country || "United States");
     setFormState(org.state || "California");
     setFormCity(org.city || "");
@@ -1011,7 +1226,13 @@ export default function OrganizationManagement() {
 
     setIsSubmitting(true);
     setTimeout(() => {
-      const finalModels = formModelSelectionType === "all" ? ["All Models"] : (formSelectedModels.length > 0 ? formSelectedModels : ["GPT-4o"]);
+      const computedModels = activeProviderCards.flatMap((c) => c.selectedModels);
+      const finalModels =
+        formModelSelectionType === "all"
+          ? ["All Models"]
+          : computedModels.length > 0
+          ? computedModels
+          : ["GPT-4o"];
 
       if (isEditMode && selectedOrg) {
         const updatedOrg: OrganizationItem = {
@@ -1162,26 +1383,13 @@ export default function OrganizationManagement() {
           />
 
           {/* Form Container */}
-          <form onSubmit={(e) => { e.preventDefault(); handleSaveOrganization(); }} className="space-y-6 max-w-5xl">
+          <form onSubmit={(e) => { e.preventDefault(); handleSaveOrganization(); }} className="space-y-6 w-full max-w-7xl mx-auto">
             {/* CARD 1: Organization Information */}
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
-              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-950/60 border border-primary-200/60 dark:border-primary-800/60 flex items-center justify-center text-primary-600 dark:text-primary-400">
-                    <Building2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
-                      Organization Information
-                    </h3>
-                    <p className="text-neutral-500 text-xs mt-0.5">
-                      Basic identity and descriptive scope for this tenant organization.
-                    </p>
-                  </div>
-                </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-primary-50 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 border border-primary-200/50">
-                  Enterprise Config
-                </span>
+              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                <h3 className="font-bold text-base text-neutral-900 dark:text-white">
+                  Organization Information
+                </h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
@@ -1231,33 +1439,56 @@ export default function OrganizationManagement() {
               </div>
             </div>
 
-            {/* CARD 2: Models Access Assignment (Provider First Workflow) */}
+            {/* CARD 2: Models Access Assignment (Scalable Provider Cards Pattern) */}
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
               <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/60 border border-purple-200/60 dark:border-purple-800/60 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                    <Cpu className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
-                      Models Access Assignment
-                    </h3>
-                    <p className="text-neutral-500 text-xs mt-0.5">
-                      Configure AI providers and specific LLM models assigned to this organization.
-                    </p>
-                  </div>
-                </div>
+                <h3 className="font-bold text-base text-neutral-900 dark:text-white">
+                  Models Access Assignment
+                </h3>
                 {formModelSelectionType === "selected" && (
-                  <span className="text-xs font-bold text-primary-600 bg-primary-50 dark:bg-primary-950/60 px-3 py-1 rounded-full border border-primary-200/50">
-                    {formSelectedModels.length} {formSelectedModels.length === 1 ? "Model" : "Models"} Selected
-                  </span>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddProviderDropdown(!showAddProviderDropdown)}
+                      className="px-3.5 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-950/80 text-primary-700 dark:text-primary-300 border border-primary-200/80 dark:border-primary-800 hover:bg-primary-100 dark:hover:bg-primary-900 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Provider</span>
+                    </button>
+
+                    {/* Add Provider Dropdown Menu */}
+                    {showAddProviderDropdown && (
+                      <div className="absolute right-0 top-full mt-1.5 z-40 w-56 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-2xl p-1.5 text-xs animate-fadeIn">
+                        <div className="px-2.5 py-1.5 text-[11px] font-bold text-neutral-400 uppercase tracking-wider border-b border-neutral-100 dark:border-neutral-800 mb-1">
+                          Select AI Provider
+                        </div>
+                        {availableProvidersToAdd.length === 0 ? (
+                          <div className="px-2 py-3 text-neutral-400 text-center text-[11px]">
+                            All available providers have been added.
+                          </div>
+                        ) : (
+                          availableProvidersToAdd.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => handleAddProviderCard(p)}
+                              className="w-full text-left px-2.5 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800 rounded-lg flex items-center justify-between font-semibold text-neutral-800 dark:text-neutral-200 transition-colors"
+                            >
+                              <span>{p.name}</span>
+                              <span className="text-[10px] text-neutral-400 font-normal">({p.models.length} models)</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
-              {/* Provider First Workflow */}
+              {/* Selection Mode Radios */}
               <div className="space-y-4 pt-1">
                 <div className="flex items-center gap-6 text-xs">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium">
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-neutral-800 dark:text-neutral-200">
                     <input
                       type="radio"
                       name="modelSelectionType"
@@ -1267,15 +1498,18 @@ export default function OrganizationManagement() {
                     />
                     <span>All Available Models</span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer font-medium">
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-neutral-800 dark:text-neutral-200">
                     <input
                       type="radio"
                       name="modelSelectionType"
                       checked={formModelSelectionType === "selected"}
                       onChange={() => {
                         setFormModelSelectionType("selected");
-                        if (selectedProviderIds.length === 0) {
-                          setSelectedProviderIds(["openai", "anthropic"]);
+                        if (activeProviderCards.length === 0) {
+                          setActiveProviderCards([
+                            { providerId: "openai", providerName: "OpenAI", selectedModels: ["GPT-4o", "GPT-4 Mini"] },
+                            { providerId: "anthropic", providerName: "Anthropic", selectedModels: ["Claude 3.5 Sonnet"] }
+                          ]);
                         }
                       }}
                       className="w-4 h-4 text-primary-600 focus:ring-primary-500"
@@ -1285,265 +1519,72 @@ export default function OrganizationManagement() {
                 </div>
 
                 {formModelSelectionType === "selected" && (
-                  <div className="space-y-4 p-4 bg-neutral-50/70 dark:bg-neutral-900/60 border border-neutral-200 dark:border-neutral-800 rounded-xl animate-fadeIn">
-                    {/* Search Input for Providers & Models */}
-                    <div className="relative">
-                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-                      <input
-                        type="text"
-                        value={modelSearchQuery}
-                        onChange={(e) => setModelSearchQuery(e.target.value)}
-                        placeholder="Search AI Provider or Model Name (e.g. OpenAI, GPT-4o, Claude)..."
-                        className="w-full h-9 pl-9 pr-8 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-                      />
-                      {modelSearchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => setModelSearchQuery("")}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* STEP 1: Select AI Providers */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider text-[10px]">
-                          Select Provider <span className="text-rose-500">*</span>
-                        </span>
-                        {selectedProviderIds.length > 0 && (
-                          <span className="text-[11px] font-medium text-neutral-500">
-                            {selectedProviderIds.length} {selectedProviderIds.length === 1 ? "Provider" : "Providers"} Active
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                        {filteredProviders.map((provider) => {
-                          const isSelected = selectedProviderIds.includes(provider.id);
-                          const providerModelNames = provider.models.map(m => m.name);
-                          const selectedModelsForProviderCount = formSelectedModels.filter(m => providerModelNames.includes(m)).length;
-
-                          return (
-                            <div
-                              key={provider.id}
-                              onClick={() => {
-                                if (isSelected) {
-                                  setSelectedProviderIds(prev => prev.filter(id => id !== provider.id));
-                                } else {
-                                  setSelectedProviderIds(prev => [...prev, provider.id]);
-                                }
-                              }}
-                              className={`p-3 rounded-xl border transition-all cursor-pointer select-none ${
-                                isSelected
-                                  ? "bg-white dark:bg-neutral-900 border-primary-500 ring-2 ring-primary-500/20 shadow-2xs"
-                                  : "bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700"
-                              }`}
-                            >
-                              <div className="flex items-start gap-2.5">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => {}}
-                                  className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 mt-0.5"
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between gap-1">
-                                    <span className="font-bold text-xs text-neutral-900 dark:text-white truncate">
-                                      {provider.name}
-                                    </span>
-                                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200/50 flex-shrink-0">
-                                      {provider.models.length} Models
-                                    </span>
-                                  </div>
-                                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5 line-clamp-1">
-                                    {isSelected ? (
-                                      <span className="font-medium text-primary-600 dark:text-primary-400">
-                                        {selectedModelsForProviderCount} of {provider.models.length} selected
-                                      </span>
-                                    ) : (
-                                      provider.description
-                                    )}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* STEP 2: Provider-Specific Collapsible Model Sections */}
-                    <div className="space-y-3 pt-2">
-                      <div className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider text-[10px]">
-                        Available Models by Provider
-                      </div>
-
-                      {selectedProviderIds.length === 0 ? (
-                        <div className="p-6 text-center bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl space-y-1">
-                          <Cpu className="w-8 h-8 text-neutral-300 dark:text-neutral-700 mx-auto" />
-                          <div className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">
-                            No Provider Selected
-                          </div>
-                          <p className="text-[11px] text-neutral-400">
-                            Select one or more providers above to view available models.
-                          </p>
+                  <div className="space-y-4 pt-2">
+                    {activeProviderCards.length === 0 ? (
+                      <div className="p-8 text-center bg-neutral-50/60 dark:bg-neutral-900/40 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-xl space-y-2">
+                        <Cpu className="w-8 h-8 text-neutral-400 mx-auto stroke-1" />
+                        <div className="text-xs font-bold text-neutral-700 dark:text-neutral-300">
+                          No Providers Added
                         </div>
-                      ) : (
-                        selectedProviderIds.map((providerId) => {
-                          const provider = AI_PROVIDERS.find(p => p.id === providerId);
-                          if (!provider) return null;
+                        <p className="text-[11px] text-neutral-500 max-w-sm mx-auto">
+                          Click <strong>"+ Add Provider"</strong> above to assign AI model providers to this organization.
+                        </p>
+                      </div>
+                    ) : (
+                      activeProviderCards.map((card) => {
+                        const providerObj = AI_PROVIDERS.find((p) => p.id === card.providerId);
+                        if (!providerObj) return null;
 
-                          const isCollapsed = collapsedProviderIds.includes(providerId) && !modelSearchQuery.trim();
-                          const providerModelNames = provider.models.map(m => m.name);
-                          const matchingModels = provider.models.filter(m => 
-                            !modelSearchQuery.trim() || 
-                            m.name.toLowerCase().includes(modelSearchQuery.toLowerCase()) || 
-                            provider.name.toLowerCase().includes(modelSearchQuery.toLowerCase())
-                          );
-
-                          const selectedInProviderCount = formSelectedModels.filter(m => providerModelNames.includes(m)).length;
-
-                          return (
-                            <div
-                              key={providerId}
-                              className="bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-2xs transition-all"
-                            >
-                              {/* Collapsible Header */}
-                              <div
-                                onClick={() => {
-                                  setCollapsedProviderIds(prev => 
-                                    prev.includes(providerId) ? prev.filter(id => id !== providerId) : [...prev, providerId]
-                                  );
-                                }}
-                                className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200/60 dark:border-neutral-800 cursor-pointer select-none"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <ChevronDown
-                                    className={`w-4 h-4 text-neutral-400 transition-transform duration-200 ${
-                                      isCollapsed ? "-rotate-90" : ""
-                                    }`}
-                                  />
-                                  <span className="font-bold text-xs text-neutral-900 dark:text-white">
-                                    {provider.name}
-                                  </span>
-                                  <span className="text-[11px] font-semibold text-primary-600 bg-primary-50 dark:bg-primary-950/50 px-2 py-0.5 rounded-full border border-primary-200/50">
-                                    {selectedInProviderCount} / {provider.models.length} Selected
-                                  </span>
-                                </div>
-
-                                {/* Actions: Select All & Clear */}
-                                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFormSelectedModels(prev => {
-                                        const existingWithoutProvider = prev.filter(m => !providerModelNames.includes(m));
-                                        return [...existingWithoutProvider, ...providerModelNames];
-                                      });
-                                    }}
-                                    className="text-[11px] font-bold text-primary-600 dark:text-primary-400 hover:underline px-2 py-1 rounded bg-primary-50 dark:bg-primary-950/40 border border-primary-200/50"
-                                  >
-                                    Select All
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFormSelectedModels(prev => prev.filter(m => !providerModelNames.includes(m)));
-                                    }}
-                                    className="text-[11px] font-semibold text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 hover:underline px-1.5 py-1"
-                                  >
-                                    Clear
-                                  </button>
-                                </div>
+                        return (
+                          <div
+                            key={card.providerId}
+                            className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs space-y-4 transition-all"
+                          >
+                            {/* Provider Card Header */}
+                            <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                              <div className="flex items-center gap-2.5">
+                                <span className="font-bold text-sm text-neutral-900 dark:text-white">
+                                  {card.providerName}
+                                </span>
+                                <span className="text-[11px] font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/60 px-2.5 py-0.5 rounded-full border border-primary-200/50">
+                                  {card.selectedModels.length} {card.selectedModels.length === 1 ? "Model" : "Models"} Selected
+                                </span>
                               </div>
 
-                              {/* Collapsible Models Grid */}
-                              {!isCollapsed && (
-                                <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 animate-fadeIn">
-                                  {matchingModels.length === 0 ? (
-                                    <div className="col-span-full py-4 text-center text-[11px] text-neutral-400">
-                                      No models match your search for {provider.name}.
-                                    </div>
-                                  ) : (
-                                    matchingModels.map((m) => {
-                                      const isChecked = formSelectedModels.includes(m.name);
-                                      return (
-                                        <label
-                                          key={m.id}
-                                          className={`flex items-center justify-between p-2 rounded-lg border transition-all cursor-pointer ${
-                                            isChecked
-                                              ? "bg-primary-50/40 dark:bg-primary-950/20 border-primary-300 dark:border-primary-800"
-                                              : "bg-neutral-50/50 dark:bg-neutral-900/40 border-neutral-200/80 dark:border-neutral-800 hover:bg-neutral-100/60"
-                                          }`}
-                                        >
-                                          <div className="flex items-center gap-2 min-w-0">
-                                            <input
-                                              type="checkbox"
-                                              checked={isChecked}
-                                              onChange={(e) => {
-                                                if (e.target.checked) {
-                                                  setFormSelectedModels(prev => [...prev, m.name]);
-                                                } else {
-                                                  setFormSelectedModels(prev => prev.filter(x => x !== m.name));
-                                                }
-                                              }}
-                                              className="w-3.5 h-3.5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 flex-shrink-0"
-                                            />
-                                            <span className="font-semibold text-neutral-800 dark:text-neutral-200 text-[11px] truncate">
-                                              {m.name}
-                                            </span>
-                                          </div>
-                                          {m.badge && (
-                                            <span className="text-[9px] font-bold text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded border border-neutral-200/50 flex-shrink-0">
-                                              {m.badge}
-                                            </span>
-                                          )}
-                                        </label>
-                                      );
-                                    })
-                                  )}
-                                </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveProviderCard(card.providerId)}
+                                className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Remove Provider</span>
+                              </button>
+                            </div>
+
+                            {/* Multi-Select Searchable Dropdown Component for this Provider */}
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
+                                Choose Models
+                              </label>
+                              <MultiSelectSearchableDropdown
+                                options={providerObj.models.map((m) => ({
+                                  id: m.id,
+                                  name: m.name,
+                                  badge: m.badge,
+                                }))}
+                                selectedValues={card.selectedModels}
+                                onChange={(selected) => handleUpdateCardModels(card.providerId, selected)}
+                                placeholder={`Select ${card.providerName} models...`}
+                              />
+                              {card.selectedModels.length === 0 && (
+                                <p className="text-[11px] font-semibold text-rose-500 pt-1">
+                                  At least one model must be selected for {card.providerName}.
+                                </p>
                               )}
                             </div>
-                          );
-                        })
-                      )}
-                    </div>
-
-                    {/* STEP 3: Selected Models Summary Bar */}
-                    {selectedProviderIds.length > 0 && (
-                      <div className="p-3 bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl space-y-2 text-xs">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider text-[10px]">
-                            Selected Models Summary
-                          </span>
-                          <span className="font-bold text-primary-600 dark:text-primary-400">
-                            Total Selected Models: {formSelectedModels.length} Models
-                          </span>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                          {selectedProviderIds.map((providerId) => {
-                            const provider = AI_PROVIDERS.find(p => p.id === providerId);
-                            if (!provider) return null;
-                            const providerModelNames = provider.models.map(m => m.name);
-                            const count = formSelectedModels.filter(m => providerModelNames.includes(m)).length;
-
-                            return (
-                              <span
-                                key={providerId}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700"
-                              >
-                                <span>{provider.name}</span>
-                                <span className="text-primary-600 dark:text-primary-400">({count})</span>
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </div>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 )}
@@ -1552,18 +1593,10 @@ export default function OrganizationManagement() {
 
             {/* CARD 3: Address & Regional Settings */}
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
-              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                  <Globe className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
-                    Address & Regional Details
-                  </h3>
-                  <p className="text-neutral-500 text-xs mt-0.5">
-                    Geographic origin and contact numbers for compliance and billing.
-                  </p>
-                </div>
+              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                <h3 className="font-bold text-base text-neutral-900 dark:text-white">
+                  Address & Regional Details
+                </h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
@@ -1639,18 +1672,10 @@ export default function OrganizationManagement() {
 
             {/* CARD 4: Primary Administrator */}
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
-              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                  <UserPlus className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
-                    Primary Administrator Details
-                  </h3>
-                  <p className="text-neutral-500 text-xs mt-0.5">
-                    Assign the root administrator responsible for managing organization access.
-                  </p>
-                </div>
+              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                <h3 className="font-bold text-base text-neutral-900 dark:text-white">
+                  Primary Administrator Details
+                </h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
@@ -1762,6 +1787,7 @@ export default function OrganizationManagement() {
             <IconButton
               icon={Filter}
               label="Filter"
+              active={filterStatus !== "All" || filterModels.length > 0 || Boolean(filterStartDate) || Boolean(filterEndDate)}
               onClick={() => setShowFilterModal(true)}
               title="Filter Organizations"
             />
@@ -1969,21 +1995,21 @@ export default function OrganizationManagement() {
                             </td>
                           )}
 
-                          {/* Models Chips Column */}
+                          {/* Models Column */}
                           {visibleColumns.assignedModels && (
-                            <td className="py-3.5 px-4 max-w-[180px]">
-                              <div className="flex flex-wrap gap-1" title={item.assignedModels.join(", ")}>
-                                {item.assignedModels.slice(0, 2).map((m) => (
-                                  <span key={m} className="px-2 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[11px] font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200/50">
-                                    {m}
-                                  </span>
-                                ))}
-                                {item.assignedModels.length > 2 && (
-                                  <span className="px-1.5 py-0.5 rounded-md bg-primary-50 dark:bg-primary-950/60 text-[11px] font-bold text-primary-700 dark:text-primary-300">
-                                    +{item.assignedModels.length - 2} More
-                                  </span>
-                                )}
-                              </div>
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setModelsDrawerOrg(item);
+                                  setShowModelsDrawer(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 font-semibold text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline cursor-pointer group focus:outline-hidden"
+                                title="Click to view assigned models"
+                              >
+                                <span>{getModelCountLabel(item)}</span>
+                              </button>
                             </td>
                           )}
 
@@ -2251,38 +2277,49 @@ export default function OrganizationManagement() {
 
                 <div className="flex items-center gap-4 text-xs">
                   <div className="text-right">
-                    <div className="text-neutral-400 font-medium">Accumulated Spend</div>
-                    <div className="text-lg font-bold text-neutral-900 dark:text-white font-mono">${selectedOrg.currentSpend.toFixed(2)}</div>
-                  </div>
-                  <div className="h-8 w-px bg-neutral-200 dark:bg-neutral-800" />
-                  <div className="text-right">
-                    <div className="text-neutral-400 font-medium">Max Budget Cap</div>
-                    <div className="text-lg font-bold text-neutral-900 dark:text-white font-mono">{selectedOrg.maxBudget === 0 ? "Unlimited" : `$${selectedOrg.maxBudget.toFixed(2)}`}</div>
+                    <div className="text-neutral-400 font-medium">Lifetime Spend</div>
+                    <div className="text-xl font-bold text-neutral-900 dark:text-white font-mono">${selectedOrg.currentSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
                   </div>
                 </div>
               </div>
 
               {/* Metadata Header Row */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 text-xs">
                 <div className="min-w-0">
                   <div className="text-neutral-400 font-medium mb-1">Created By</div>
-                  <div className="font-semibold text-neutral-800 dark:text-neutral-200 truncate" title={selectedOrg.createdBy}>{selectedOrg.createdBy}</div>
+                  <div className="font-semibold text-neutral-800 dark:text-neutral-200 truncate" title={getUserDisplayName(selectedOrg.createdBy).fullText}>
+                    {getUserDisplayName(selectedOrg.createdBy).name}
+                  </div>
                 </div>
                 <div className="min-w-0">
                   <div className="text-neutral-400 font-medium mb-1">Created Date</div>
                   <div className="font-semibold text-neutral-800 dark:text-neutral-200">{selectedOrg.createdDate}</div>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-neutral-400 font-medium mb-1">Reset Cycle</div>
-                  <div className="font-semibold text-neutral-800 dark:text-neutral-200">{selectedOrg.resetCycle}</div>
+                  <div className="text-neutral-400 font-medium mb-1">Last Updated On</div>
+                  <div className="font-semibold text-neutral-800 dark:text-neutral-200">{selectedOrg.lastUpdatedOn || "Jul 28, 2026"}</div>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-neutral-400 font-medium mb-1">TPM / RPM Limits</div>
-                  <div className="font-mono font-semibold text-neutral-800 dark:text-neutral-200">{selectedOrg.tpmLimit.toLocaleString()} / {selectedOrg.rpmLimit.toLocaleString()}</div>
+                  <div className="text-neutral-400 font-medium mb-1">Updated By</div>
+                  <div className="font-semibold text-neutral-800 dark:text-neutral-200 truncate" title={getUserDisplayName(selectedOrg.updatedBy || selectedOrg.createdBy).fullText}>
+                    {getUserDisplayName(selectedOrg.updatedBy || selectedOrg.createdBy).name}
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <div className="text-neutral-400 font-medium mb-1">TPM Limit</div>
+                  <div className="font-mono font-semibold text-neutral-800 dark:text-neutral-200">{selectedOrg.tpmLimit.toLocaleString()}</div>
+                </div>
+                <div className="min-w-0">
+                  <div className="text-neutral-400 font-medium mb-1">RPM Limit</div>
+                  <div className="font-mono font-semibold text-neutral-800 dark:text-neutral-200">{selectedOrg.rpmLimit.toLocaleString()}</div>
                 </div>
                 <div className="min-w-0">
                   <div className="text-neutral-400 font-medium mb-1">Members</div>
                   <div className="font-semibold text-primary-600">{selectedOrg.membersCount} Active Members</div>
+                </div>
+                <div className="min-w-0">
+                  <div className="text-neutral-400 font-medium mb-1">Lifetime Spend</div>
+                  <div className="font-mono font-semibold text-neutral-900 dark:text-white">${selectedOrg.currentSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
                 </div>
               </div>
             </div>
@@ -2290,10 +2327,10 @@ export default function OrganizationManagement() {
             {/* Standard HB Horizontal Tabs */}
             <div className="border-b border-neutral-200 dark:border-neutral-800 overflow-x-auto">
               <div className="flex gap-6 text-xs font-semibold min-w-max">
-                {(["overview", "members", "settings"] as const).map((tab) => (
+                {(["overview", "members", "models", "teams"] as const).map((tab) => (
                   <button
                     key={tab}
-                    onClick={() => setDetailTab(tab as any)}
+                    onClick={() => setDetailTab(tab)}
                     className={`py-2.5 border-b-2 capitalize transition-colors ${
                       detailTab === tab
                         ? "border-primary-600 text-primary-600 dark:text-primary-400"
@@ -2308,7 +2345,7 @@ export default function OrganizationManagement() {
 
             {/* OVERVIEW TAB */}
             {detailTab === "overview" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 text-xs">
                 {/* CARD 1 — ORGANIZATION INFORMATION */}
                 <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs hover:shadow-md transition-shadow space-y-3.5">
                   <div className="flex items-center gap-2 pb-2.5 border-b border-neutral-100 dark:border-neutral-800">
@@ -2335,9 +2372,31 @@ export default function OrganizationManagement() {
                       <span className="text-neutral-400 font-medium">Created Date:</span>
                       <span className="font-semibold text-neutral-700 dark:text-neutral-300">{selectedOrg.createdDate}</span>
                     </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-neutral-400 font-medium mt-0.5">Created By:</span>
+                      <div className="text-right">
+                        <div className="font-semibold text-neutral-900 dark:text-white" title={getUserDisplayName(selectedOrg.createdBy).fullText}>
+                          {getUserDisplayName(selectedOrg.createdBy).name}
+                        </div>
+                        {getUserDisplayName(selectedOrg.createdBy).email && (
+                          <div className="text-[10px] text-neutral-400 font-mono">{getUserDisplayName(selectedOrg.createdBy).email}</div>
+                        )}
+                      </div>
+                    </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-neutral-400 font-medium">Created By:</span>
-                      <span className="font-semibold text-neutral-700 dark:text-neutral-300 truncate max-w-[140px]">{selectedOrg.createdBy}</span>
+                      <span className="text-neutral-400 font-medium">Last Updated On:</span>
+                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">{selectedOrg.lastUpdatedOn || "Jul 28, 2026"}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-neutral-400 font-medium mt-0.5">Updated By:</span>
+                      <div className="text-right">
+                        <div className="font-semibold text-neutral-900 dark:text-white" title={getUserDisplayName(selectedOrg.updatedBy || selectedOrg.createdBy).fullText}>
+                          {getUserDisplayName(selectedOrg.updatedBy || selectedOrg.createdBy).name}
+                        </div>
+                        {getUserDisplayName(selectedOrg.updatedBy || selectedOrg.createdBy).email && (
+                          <div className="text-[10px] text-neutral-400 font-mono">{getUserDisplayName(selectedOrg.updatedBy || selectedOrg.createdBy).email}</div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-neutral-400 font-medium">Status:</span>
@@ -2346,45 +2405,67 @@ export default function OrganizationManagement() {
                   </div>
                 </div>
 
-                {/* CARD 2 — BUDGET SUMMARY */}
+                {/* CARD 2 — ASSIGNED MODELS (REPLACES BUDGET SUMMARY) */}
                 <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs hover:shadow-md transition-shadow space-y-3.5">
                   <div className="flex items-center justify-between pb-2.5 border-b border-neutral-100 dark:border-neutral-800">
                     <div className="flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4 text-emerald-600" />
+                      <Cpu className="w-4 h-4 text-emerald-600" />
                       <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
-                        Budget Summary
+                        Assigned Models
                       </h3>
                     </div>
-                    <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200/50">
-                      {selectedOrg.resetCycle} Reset
+                    <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200/50">
+                      {getModelCount(selectedOrg)} Models
                     </span>
                   </div>
-                  <div className="space-y-2.5 font-mono">
-                    <div className="flex justify-between text-neutral-600 dark:text-neutral-400">
-                      <span>Current Spend:</span>
-                      <span className="font-bold text-neutral-900 dark:text-white">${selectedOrg.currentSpend.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-neutral-600 dark:text-neutral-400">
-                      <span>Allocated Budget:</span>
-                      <span className="font-bold text-neutral-900 dark:text-white">{selectedOrg.maxBudget === 0 ? "Unlimited" : `$${selectedOrg.maxBudget.toFixed(2)}`}</span>
-                    </div>
-                    <div className="flex justify-between text-neutral-600 dark:text-neutral-400">
-                      <span>Remaining Budget:</span>
-                      <span className="font-bold text-emerald-600">{selectedOrg.maxBudget === 0 ? "Unlimited" : `$${Math.max(0, selectedOrg.maxBudget - selectedOrg.currentSpend).toFixed(2)}`}</span>
-                    </div>
-                    {selectedOrg.maxBudget > 0 && (
-                      <div className="space-y-1 pt-1">
-                        <div className="w-full h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-primary-600 rounded-full transition-all" 
-                            style={{ width: `${Math.min(100, (selectedOrg.currentSpend / selectedOrg.maxBudget) * 100)}%` }} 
-                          />
+                  
+                  {/* Grouped Models Content */}
+                  <div className="max-h-52 overflow-y-auto space-y-3 pr-1">
+                    {(() => {
+                      const modelsList = mockOrgModels[selectedOrg.id] || [];
+                      const grouped = new Map<string, string[]>();
+
+                      if (selectedOrg.modelSelectionType === "all" || selectedOrg.assignedModels.includes("All Models")) {
+                        AI_PROVIDERS.forEach((p) => {
+                          grouped.set(p.name, p.models.map((m) => m.name));
+                        });
+                      } else if (modelsList.length > 0) {
+                        modelsList.forEach((m) => {
+                          if (!grouped.has(m.provider)) grouped.set(m.provider, []);
+                          grouped.get(m.provider)!.push(m.modelName);
+                        });
+                      } else {
+                        selectedOrg.assignedModels.forEach((mName) => {
+                          const pObj = AI_PROVIDERS.find((p) => p.models.some((mod) => mod.name.toLowerCase() === mName.toLowerCase()));
+                          const pName = pObj ? pObj.name : "Other Providers";
+                          if (!grouped.has(pName)) grouped.set(pName, []);
+                          grouped.get(pName)!.push(mName);
+                        });
+                      }
+
+                      if (grouped.size === 0) {
+                        return <div className="text-neutral-400 text-xs py-4 text-center">No models assigned to this organization.</div>;
+                      }
+
+                      return Array.from(grouped.entries()).map(([provider, models]) => (
+                        <div key={provider} className="space-y-1.5">
+                          <div className="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider flex items-center justify-between">
+                            <span>{provider}</span>
+                            <span className="text-neutral-400 text-[10px] font-normal">({models.length})</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {models.map((mName) => (
+                              <span
+                                key={mName}
+                                className="px-2 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[11px] font-medium text-neutral-800 dark:text-neutral-200 border border-neutral-200/60 dark:border-neutral-750"
+                              >
+                                {mName}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                        <div className="text-[10px] text-right text-neutral-400">
-                          {((selectedOrg.currentSpend / selectedOrg.maxBudget) * 100).toFixed(1)}% Used
-                        </div>
-                      </div>
-                    )}
+                      ));
+                    })()}
                   </div>
                 </div>
 
@@ -2413,26 +2494,38 @@ export default function OrganizationManagement() {
                 </div>
 
                 {/* CARD 4 — ASSIGNED TEAMS */}
-                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs hover:shadow-md transition-shadow space-y-3.5">
-                  <div className="flex items-center justify-between pb-2.5 border-b border-neutral-100 dark:border-neutral-800">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-blue-600" />
-                      <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
-                        Assigned Teams
-                      </h3>
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs hover:shadow-md transition-shadow space-y-3.5 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between pb-2.5 border-b border-neutral-100 dark:border-neutral-800">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-blue-600" />
+                        <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
+                          Assigned Teams
+                        </h3>
+                      </div>
+                      <span className="font-bold text-xs text-primary-600">
+                        {(mockOrgTeams[selectedOrg.id] || []).length} Teams
+                      </span>
                     </div>
-                    <span className="font-bold text-xs text-primary-600">3 Teams</span>
+                    <div className="space-y-2 mt-3">
+                      {(mockOrgTeams[selectedOrg.id] || []).map((t) => (
+                        <div
+                          key={t.id}
+                          className="p-2 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg flex items-center justify-between text-neutral-800 dark:text-neutral-200 text-xs font-medium"
+                        >
+                          <span>{t.name}</span>
+                          <span className="font-mono font-bold text-neutral-900 dark:text-white">
+                            ${t.spend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <div className="p-2 bg-neutral-50 dark:bg-neutral-800/40 rounded text-neutral-800 dark:text-neutral-200 font-medium">DevOps Core</div>
-                    <div className="p-2 bg-neutral-50 dark:bg-neutral-800/40 rounded text-neutral-800 dark:text-neutral-200 font-medium">AI Research Lab</div>
-                    <div className="p-2 bg-neutral-50 dark:bg-neutral-800/40 rounded text-neutral-800 dark:text-neutral-200 font-medium">Security Ops</div>
-                  </div>
-                  <div className="pt-1 text-right">
+                  <div className="pt-2 text-right">
                     <button 
                       type="button" 
-                      onClick={() => toast.info("Navigating to Teams module filtered by " + selectedOrg.name)}
-                      className="text-xs font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                      onClick={() => setDetailTab("teams")}
+                      className="text-xs font-bold text-primary-600 dark:text-primary-400 hover:underline cursor-pointer"
                     >
                       View All Teams →
                     </button>
@@ -2450,7 +2543,7 @@ export default function OrganizationManagement() {
                     <SearchBar
                       value={memberSearchQuery}
                       onChange={(val) => setMemberSearchQuery(val)}
-                      placeholder="Search Members by Name, Email, or User ID..."
+                      placeholder="Search Members by Full Name or Email Address..."
                     />
                     <select
                       value={memberFilterRole}
@@ -2460,17 +2553,6 @@ export default function OrganizationManagement() {
                       <option value="All">All Roles</option>
                       <option value="Organization Admin">Organization Admin</option>
                       <option value="Internal User">Internal User</option>
-                      <option value="Internal User Viewer">Internal User Viewer</option>
-                    </select>
-                    <select
-                      value={memberFilterStatus}
-                      onChange={(e) => setMemberFilterStatus(e.target.value)}
-                      className="h-9 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                    >
-                      <option value="All">All Statuses</option>
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                      <option value="Pending Invitation">Pending Invitation</option>
                     </select>
                   </div>
 
@@ -2529,9 +2611,12 @@ export default function OrganizationManagement() {
                               className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
                             />
                           </th>
-                          <th className="py-3 px-4">User Information</th>
+                          <th className="py-3 px-4">User ID</th>
+                          <th className="py-3 px-4">Full Name</th>
+                          <th className="py-3 px-4">Email Address</th>
                           <th className="py-3 px-4">Organization Role</th>
-                          <th className="py-3 px-4">Current Spend</th>
+                          <th className="py-3 px-4">Spend (USD)</th>
+                          <th className="py-3 px-4">Created Date</th>
                           <th className="py-3 px-4">Joined Date</th>
                           <th className="py-3 px-4">Status</th>
                           <th className="py-3 px-4 text-right">Actions</th>
@@ -2540,7 +2625,7 @@ export default function OrganizationManagement() {
                       <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/80 text-neutral-800 dark:text-neutral-200">
                         {filteredMembers.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="py-12 text-center text-neutral-400 space-y-3">
+                            <td colSpan={10} className="py-12 text-center text-neutral-400 space-y-3">
                               <Users className="w-10 h-10 mx-auto text-neutral-300 dark:text-neutral-700 stroke-1" />
                               <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">No Members Added</div>
                               <p className="text-xs max-w-sm mx-auto">No members match your search or filter selection in this organization.</p>
@@ -2567,38 +2652,46 @@ export default function OrganizationManagement() {
                                   />
                                 </td>
 
-                                <td className="py-3.5 px-4">
-                                  <div className="space-y-0.5">
-                                    <div className="font-bold text-neutral-900 dark:text-white">{mem.name}</div>
-                                    <div className="text-neutral-500 text-[11px]">{mem.email}</div>
-                                    <div className="flex items-center gap-1 font-mono text-[10px] text-neutral-400">
-                                      <span>User ID: {mem.userId}</span>
-                                      <button type="button" onClick={() => handleCopyText(mem.userId, "Copied User ID!")} title="Copy User ID">
-                                        <Copy className="w-3 h-3 hover:text-primary-600" />
-                                      </button>
-                                    </div>
+                                <td className="py-3.5 px-4 font-mono text-[11px] text-neutral-500 whitespace-nowrap">
+                                  <div className="flex items-center gap-1">
+                                    <span>{mem.userId}</span>
+                                    <button type="button" onClick={() => handleCopyText(mem.userId, "Copied User ID!")} title="Copy User ID">
+                                      <Copy className="w-3 h-3 text-neutral-400 hover:text-primary-600" />
+                                    </button>
                                   </div>
                                 </td>
 
-                                <td className="py-3.5 px-4">
+                                <td className="py-3.5 px-4 font-bold text-neutral-900 dark:text-white whitespace-nowrap">
+                                  {mem.name}
+                                </td>
+
+                                <td className="py-3.5 px-4 text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
+                                  {mem.email}
+                                </td>
+
+                                <td className="py-3.5 px-4 whitespace-nowrap">
                                   <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold border ${
                                     mem.role === "Organization Admin"
                                       ? "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200"
-                                      : mem.role === "Internal User"
-                                      ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200"
-                                      : "bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200"
+                                      : "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200"
                                   }`}>
                                     {mem.role}
                                   </span>
                                 </td>
 
-                                <td className="py-3.5 px-4 font-mono font-medium text-neutral-700 dark:text-neutral-300">
-                                  {mem.currentSpend > 0 ? `$${mem.currentSpend.toFixed(2)}` : "—"}
+                                <td className="py-3.5 px-4 font-mono font-semibold text-neutral-900 dark:text-white whitespace-nowrap">
+                                  ${mem.currentSpend.toFixed(2)}
                                 </td>
 
-                                <td className="py-3.5 px-4 text-neutral-500">{mem.joinedDate}</td>
+                                <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">
+                                  {mem.createdDate || "May 10, 2026"}
+                                </td>
 
-                                <td className="py-3.5 px-4">
+                                <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">
+                                  {mem.joinedDate}
+                                </td>
+
+                                <td className="py-3.5 px-4 whitespace-nowrap">
                                   <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
                                     mem.status === "Active"
                                       ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200"
@@ -2614,27 +2707,24 @@ export default function OrganizationManagement() {
                                 <td className="py-3.5 px-4 text-right relative">
                                   <button
                                     type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveMemberMenuId(isMenuOpen ? null : mem.id);
-                                    }}
-                                    className="p-1.5 rounded-lg text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                                    onClick={() => setActiveMemberMenuId(isMenuOpen ? null : mem.id)}
+                                    className="p-1 rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
                                   >
                                     <MoreVertical className="w-4 h-4" />
                                   </button>
 
                                   {isMenuOpen && (
-                                    <div className="absolute right-4 top-10 z-30 w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-lg py-1.5 text-left text-xs animate-fadeIn">
+                                    <div className="absolute right-4 top-10 z-30 w-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-lg py-1.5 text-left text-xs animate-fadeIn">
                                       <button
                                         type="button"
                                         onClick={() => {
                                           setActiveMemberMenuId(null);
                                           handleOpenEditMemberModal(mem);
                                         }}
-                                        className="w-full px-3 py-2 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 flex items-center gap-2"
+                                        className="w-full px-3 py-2 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 flex items-center gap-2 font-medium"
                                       >
                                         <Edit3 className="w-3.5 h-3.5 text-neutral-500" />
-                                        <span>Edit Member / Role</span>
+                                        <span>Edit Member</span>
                                       </button>
 
                                       <hr className="my-1 border-neutral-100 dark:border-neutral-800" />
@@ -2665,144 +2755,223 @@ export default function OrganizationManagement() {
               </div>
             )}
 
-            {/* SETTINGS TAB */}
-            {detailTab === "settings" && (
-              <div className="space-y-6 text-xs animate-fadeIn">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-2xs">
-                  <div>
-                    <h3 className="font-bold text-base text-neutral-900 dark:text-white flex items-center gap-2">
-                      <Lock className="w-4.5 h-4.5 text-primary-600" />
-                      Organization Settings & Configuration
-                    </h3>
-                    <p className="text-xs text-neutral-500 mt-0.5">
-                      View enterprise budgets, permitted models, rate limits, and object permissions.
-                    </p>
+            {/* MODELS TAB */}
+            {detailTab === "models" && (
+              <div className="space-y-4 text-xs animate-fadeIn">
+                {/* Models Action Toolbar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 shadow-2xs">
+                  <div className="flex items-center gap-2 flex-1">
+                    <SearchBar
+                      value={modelsTabSearchQuery}
+                      onChange={(val) => setModelsTabSearchQuery(val)}
+                      placeholder="Search Models by Model Name or Model Alias..."
+                    />
+                    <select
+                      value={modelsTabFilterProvider}
+                      onChange={(e) => setModelsTabFilterProvider(e.target.value)}
+                      className="h-9 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
+                    >
+                      <option value="All">All Providers</option>
+                      {AI_PROVIDERS.map((p) => (
+                        <option key={p.id} value={p.name}>{p.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={modelsTabFilterStatus}
+                      onChange={(e) => setModelsTabFilterStatus(e.target.value)}
+                      className="h-9 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
+                    >
+                      <option value="All">All Statuses</option>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
                   </div>
 
-                  {!isSettingsEditMode && (
-                    <PrimaryButton icon={Edit3} onClick={handleStartInlineSettingsEdit}>
-                      Edit Settings
-                    </PrimaryButton>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <IconButton
+                      icon={Download}
+                      label="Export"
+                      onClick={() => toast.success("Exported assigned models list")}
+                    />
+                    <IconButton
+                      icon={RefreshCw}
+                      label="Refresh"
+                      onClick={() => toast.success("Refreshed assigned models")}
+                    />
+                  </div>
                 </div>
 
-                {!isSettingsEditMode ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs space-y-3.5">
-                      <div className="flex items-center gap-2 pb-2.5 border-b border-neutral-100 dark:border-neutral-800">
-                        <Building2 className="w-4 h-4 text-primary-600" />
-                        <h4 className="font-bold text-sm text-neutral-900 dark:text-white">Basic Information</h4>
-                      </div>
-                      <div className="space-y-2.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-neutral-400 font-medium">Organization Name:</span>
-                          <span className="font-semibold text-neutral-900 dark:text-white">{selectedOrg.name}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-neutral-400 font-medium">Organization ID:</span>
-                          <span className="font-mono text-neutral-700 dark:text-neutral-300">{selectedOrg.orgId}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-neutral-400 font-medium">Created Date:</span>
-                          <span className="font-semibold text-neutral-700 dark:text-neutral-300">{selectedOrg.createdDate}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-neutral-400 font-medium">Created By:</span>
-                          <span className="font-semibold text-neutral-700 dark:text-neutral-300">{selectedOrg.createdBy}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-neutral-400 font-medium">Status:</span>
-                          {renderStatusBadge(selectedOrg.status)}
-                        </div>
-                      </div>
-                    </div>
+                {/* Models Table */}
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xs overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-neutral-50/80 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 font-semibold">
+                          <th className="py-3 px-4">Provider</th>
+                          <th className="py-3 px-4">Model Name</th>
+                          <th className="py-3 px-4">Model Alias</th>
+                          <th className="py-3 px-4">Status</th>
+                          <th className="py-3 px-4">Added On</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/80 text-neutral-800 dark:text-neutral-200">
+                        {(() => {
+                          const modelsList = mockOrgModels[selectedOrg.id] || [];
+                          const filtered = modelsList.filter((m) => {
+                            const q = modelsTabSearchQuery.toLowerCase().trim();
+                            const matchesSearch =
+                              !q ||
+                              m.modelName.toLowerCase().includes(q) ||
+                              m.modelAlias.toLowerCase().includes(q);
+                            const matchesProvider =
+                              modelsTabFilterProvider === "All" || m.provider === modelsTabFilterProvider;
+                            const matchesStatus =
+                              modelsTabFilterStatus === "All" || m.status === modelsTabFilterStatus;
+                            return matchesSearch && matchesProvider && matchesStatus;
+                          });
 
-                    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs space-y-3.5">
-                      <div className="flex items-center justify-between pb-2.5 border-b border-neutral-100 dark:border-neutral-800">
-                        <div className="flex items-center gap-2">
-                          <BarChart3 className="w-4 h-4 text-emerald-600" />
-                          <h4 className="font-bold text-sm text-neutral-900 dark:text-white">Budget Configuration</h4>
-                        </div>
-                        <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                          {selectedOrg.resetCycle} Reset
-                        </span>
-                      </div>
-                      <div className="space-y-2.5 font-mono">
-                        <div className="flex justify-between text-neutral-600 dark:text-neutral-400">
-                          <span>Max Budget:</span>
-                          <span className="font-bold text-neutral-900 dark:text-white">${selectedOrg.maxBudget.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-neutral-600 dark:text-neutral-400">
-                          <span>Soft Budget (80%):</span>
-                          <span className="font-bold text-neutral-900 dark:text-white">${(selectedOrg.maxBudget * 0.8).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-neutral-600 dark:text-neutral-400">
-                          <span>Current Spend:</span>
-                          <span className="font-bold text-neutral-900 dark:text-white">${selectedOrg.currentSpend.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={5} className="py-12 text-center text-neutral-400 space-y-3">
+                                  <Cpu className="w-10 h-10 mx-auto text-neutral-300 dark:text-neutral-700 stroke-1" />
+                                  <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">No Models Found</div>
+                                  <p className="text-xs max-w-sm mx-auto">No assigned models match your search or filter selection.</p>
+                                </td>
+                              </tr>
+                            );
+                          }
 
-                    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs space-y-3.5">
-                      <div className="flex items-center gap-2 pb-2.5 border-b border-neutral-100 dark:border-neutral-800">
-                        <ShieldCheck className="w-4 h-4 text-amber-600" />
-                        <h4 className="font-bold text-sm text-neutral-900 dark:text-white">Rate Limits</h4>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 pt-1">
-                        <div className="p-3 bg-neutral-50 dark:bg-neutral-800/60 rounded-lg text-center">
-                          <div className="text-neutral-400 text-[10px] font-semibold uppercase">TPM Limit</div>
-                          <div className="text-base font-bold text-neutral-900 dark:text-white font-mono mt-0.5">
-                            {selectedOrg.tpmLimit.toLocaleString()}
-                          </div>
-                        </div>
-                        <div className="p-3 bg-neutral-50 dark:bg-neutral-800/60 rounded-lg text-center">
-                          <div className="text-neutral-400 text-[10px] font-semibold uppercase">RPM Limit</div>
-                          <div className="text-base font-bold text-neutral-900 dark:text-white font-mono mt-0.5">
-                            {selectedOrg.rpmLimit.toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                          return filtered.map((mod) => (
+                            <tr key={mod.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40 transition-colors">
+                              <td className="py-3.5 px-4 font-bold text-neutral-900 dark:text-white whitespace-nowrap">
+                                {mod.provider}
+                              </td>
+                              <td className="py-3.5 px-4 font-semibold text-primary-600 dark:text-primary-400 whitespace-nowrap">
+                                {mod.modelName}
+                              </td>
+                              <td className="py-3.5 px-4 font-mono text-[11px] text-neutral-500 whitespace-nowrap">
+                                {mod.modelAlias}
+                              </td>
+                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50">
+                                  ● {mod.status}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">
+                                {mod.addedOn}
+                              </td>
+                            </tr>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
                   </div>
-                ) : (
-                  <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-lg p-6 space-y-6">
-                    <div className="bg-neutral-50/50 dark:bg-neutral-900/40 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1 md:col-span-2">
-                          <label className="block font-semibold text-neutral-800 dark:text-neutral-200">Organization Name *</label>
-                          <input
-                            type="text"
-                            value={settingsFormName}
-                            onChange={(e) => setSettingsFormName(e.target.value)}
-                            className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-semibold"
-                          />
-                        </div>
-                        <div className="space-y-1 md:col-span-2">
-                          <label className="block font-semibold text-neutral-800 dark:text-neutral-200">Description</label>
-                          <textarea
-                            value={settingsFormDescription}
-                            onChange={(e) => setSettingsFormDescription(e.target.value)}
-                            rows={2}
-                            className="w-full p-2.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs resize-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                </div>
+              </div>
+            )}
 
-                    <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => setIsSettingsEditMode(false)}
-                        className="px-4 py-2 border border-neutral-300 rounded-lg font-semibold text-xs"
-                      >
-                        Cancel
-                      </button>
-                      <PrimaryButton onClick={handleSaveInlineSettings}>
-                        Save Changes
-                      </PrimaryButton>
-                    </div>
+            {/* TEAMS TAB */}
+            {detailTab === "teams" && (
+              <div className="space-y-4 text-xs animate-fadeIn">
+                {/* Teams Action Toolbar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 shadow-2xs">
+                  <div className="flex items-center gap-2 flex-1">
+                    <SearchBar
+                      value={teamsTabSearchQuery}
+                      onChange={(val) => setTeamsTabSearchQuery(val)}
+                      placeholder="Search Teams by Team Name..."
+                    />
+                    <select
+                      value={teamsTabFilterStatus}
+                      onChange={(e) => setTeamsTabFilterStatus(e.target.value)}
+                      className="h-9 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
+                    >
+                      <option value="All">All Statuses</option>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
                   </div>
-                )}
+
+                  <div className="flex items-center gap-2">
+                    <IconButton
+                      icon={Download}
+                      label="Export"
+                      onClick={() => toast.success("Exported Teams list")}
+                    />
+                    <IconButton
+                      icon={RefreshCw}
+                      label="Refresh"
+                      onClick={() => toast.success("Refreshed assigned teams")}
+                    />
+                  </div>
+                </div>
+
+                {/* Teams Table */}
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xs overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-neutral-50/80 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 font-semibold">
+                          <th className="py-3 px-4">Team Name</th>
+                          <th className="py-3 px-4">Members</th>
+                          <th className="py-3 px-4">Spend (USD)</th>
+                          <th className="py-3 px-4">Created On</th>
+                          <th className="py-3 px-4">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/80 text-neutral-800 dark:text-neutral-200">
+                        {(() => {
+                          const teamsList = mockOrgTeams[selectedOrg.id] || [];
+                          const filtered = teamsList.filter((t) => {
+                            const q = teamsTabSearchQuery.toLowerCase().trim();
+                            const matchesSearch = !q || t.name.toLowerCase().includes(q);
+                            const matchesStatus = teamsTabFilterStatus === "All" || t.status === teamsTabFilterStatus;
+                            return matchesSearch && matchesStatus;
+                          });
+
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={5} className="py-12 text-center text-neutral-400 space-y-3">
+                                  <Users className="w-10 h-10 mx-auto text-neutral-300 dark:text-neutral-700 stroke-1" />
+                                  <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">No Teams Found</div>
+                                  <p className="text-xs max-w-sm mx-auto">No assigned teams match your search or filter selection.</p>
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return filtered.map((team) => (
+                            <tr key={team.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40 transition-colors">
+                              <td className="py-3.5 px-4 font-bold text-neutral-900 dark:text-white whitespace-nowrap">
+                                {team.name}
+                              </td>
+                              <td className="py-3.5 px-4 font-medium text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
+                                {team.membersCount} Members
+                              </td>
+                              <td className="py-3.5 px-4 font-mono font-semibold text-neutral-900 dark:text-white whitespace-nowrap">
+                                ${team.spend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">
+                                {team.createdOn}
+                              </td>
+                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                  team.status === "Active"
+                                    ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/50"
+                                    : "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-neutral-200/50"
+                                }`}>
+                                  ● {team.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -2812,8 +2981,8 @@ export default function OrganizationManagement() {
       {/* FILTER DRAWER MODAL */}
       {showFilterModal && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white dark:bg-neutral-900 w-full max-w-md h-full shadow-2xl flex flex-col justify-between p-6">
-            <div className="space-y-6 overflow-y-auto">
+          <div className="bg-white dark:bg-neutral-900 w-full max-w-md h-full shadow-2xl flex flex-col justify-between p-6 relative overflow-visible">
+            <div className="space-y-5 flex-1 overflow-y-auto pr-1 sm:overflow-visible">
               <div className="flex items-center justify-between pb-4 border-b border-neutral-200 dark:border-neutral-800">
                 <h3 className="font-bold text-base text-neutral-900 dark:text-white flex items-center gap-2">
                   <Filter className="w-4 h-4 text-primary-600" />
@@ -2824,13 +2993,59 @@ export default function OrganizationManagement() {
                 </button>
               </div>
 
-              <div className="space-y-4 text-xs">
-                <div>
-                  <label className="font-semibold block mb-1">Status</label>
+              <div className="space-y-6 text-xs">
+                {/* 1. Created Date Range */}
+                <div className="space-y-2">
+                  <label className="font-bold text-xs block text-neutral-800 dark:text-neutral-200">
+                    Created Date
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-[11px] text-neutral-500 font-medium block mb-1">Start Date</span>
+                      <input
+                        type="date"
+                        value={filterStartDate}
+                        onChange={(e) => setFilterStartDate(e.target.value)}
+                        className="w-full h-10 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-800 dark:text-neutral-200 focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-neutral-500 font-medium block mb-1">End Date</span>
+                      <input
+                        type="date"
+                        value={filterEndDate}
+                        onChange={(e) => setFilterEndDate(e.target.value)}
+                        className="w-full h-10 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-800 dark:text-neutral-200 focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                  </div>
+                  {(filterStartDate || filterEndDate) && (
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFilterStartDate("");
+                          setFilterEndDate("");
+                        }}
+                        className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline"
+                      >
+                        Clear Date Range
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <hr className="border-neutral-100 dark:border-neutral-800" />
+
+                {/* 2. Status Dropdown */}
+                <div className="space-y-2">
+                  <label className="font-bold text-xs block text-neutral-800 dark:text-neutral-200">
+                    Status
+                  </label>
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full h-9 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg"
+                    className="w-full h-10 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-800 dark:text-neutral-200 focus:ring-2 focus:ring-primary-500 transition-all cursor-pointer"
                   >
                     <option value="All">All Statuses</option>
                     <option value="Active">Active</option>
@@ -2839,18 +3054,19 @@ export default function OrganizationManagement() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="font-semibold block mb-1">Assigned Model</label>
-                  <select
-                    value={filterModel}
-                    onChange={(e) => setFilterModel(e.target.value)}
-                    className="w-full h-9 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg"
-                  >
-                    <option value="All">All Models</option>
-                    {AVAILABLE_MODELS.map((m) => (
-                      <option key={m.id} value={m.name}>{m.name}</option>
-                    ))}
-                  </select>
+                <hr className="border-neutral-100 dark:border-neutral-800" />
+
+                {/* 3. Models Multi-Select Searchable Dropdown */}
+                <div className="space-y-2 pb-4">
+                  <label className="font-bold text-xs block text-neutral-800 dark:text-neutral-200">
+                    Models
+                  </label>
+                  <MultiSelectSearchableDropdown
+                    options={AVAILABLE_MODELS}
+                    selectedValues={filterModels}
+                    onChange={(selected) => setFilterModels(selected)}
+                    placeholder="Select models..."
+                  />
                 </div>
               </div>
             </div>
@@ -2860,7 +3076,9 @@ export default function OrganizationManagement() {
                 type="button"
                 onClick={() => {
                   setFilterStatus("All");
-                  setFilterModel("All");
+                  setFilterModels([]);
+                  setFilterStartDate("");
+                  setFilterEndDate("");
                   setSearchQuery("");
                 }}
                 className="px-4 py-2 text-xs font-semibold text-neutral-600 hover:text-neutral-900 border border-neutral-300 rounded-lg"
@@ -3295,6 +3513,16 @@ export default function OrganizationManagement() {
           </div>
         </div>
       )}
+
+      {/* ASSIGNED MODELS RIGHT SIDE DRAWER */}
+      <AssignedModelsDrawer
+        isOpen={showModelsDrawer}
+        onClose={() => setShowModelsDrawer(false)}
+        orgName={modelsDrawerOrg?.name || ""}
+        assignedModels={modelsDrawerOrg?.assignedModels || []}
+        modelSelectionType={modelsDrawerOrg?.modelSelectionType}
+        providerCatalog={AI_PROVIDERS}
+      />
     </div>
   );
 }
