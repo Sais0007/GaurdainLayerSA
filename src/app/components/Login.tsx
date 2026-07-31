@@ -381,33 +381,7 @@ export default function Login({
               )}
             </button>
 
-            {/* OR Divider */}
-            <div className="relative py-1.5 flex items-center justify-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-neutral-200 dark:border-neutral-800" />
-              </div>
-              <div className="relative bg-white dark:bg-neutral-900 px-3 text-[11px] font-semibold uppercase text-neutral-400 dark:text-neutral-500">
-                OR
-              </div>
-            </div>
-
-            {/* Tertiary Action: Outlined Login with SSO Button */}
-            <button
-              type="button"
-              onClick={() => setShowSSOModal(true)}
-              disabled={isLoading || isDemoLoading}
-              className="w-full h-10 bg-transparent hover:bg-neutral-50 dark:hover:bg-neutral-800/60 border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 font-medium text-xs rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <KeyRound className="w-4 h-4 text-neutral-500" />
-              <span>Login with SSO</span>
-            </button>
           </form>
-
-          {/* Footer Security Badge - Compact & Subtle */}
-          <div className="mt-6 pt-3.5 border-t border-neutral-100 dark:border-neutral-800/80 text-center text-[11px] text-neutral-400 dark:text-neutral-500 flex items-center justify-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span>256-Bit Encrypted TLS Enterprise Security</span>
-          </div>
         </div>
       </div>
 

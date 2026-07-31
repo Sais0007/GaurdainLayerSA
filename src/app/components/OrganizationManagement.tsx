@@ -35,7 +35,14 @@ import {
   UserPlus,
   Save,
   Cpu,
-  CheckCircle2
+  CheckCircle2,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Zap,
+  Activity,
+  PieChart,
+  Layers
 } from "lucide-react";
 import { toast } from "sonner";
 import { 
@@ -69,6 +76,8 @@ export interface OrganizationItem {
   name: string;
   description?: string;
   createdDate: string;
+  expirationType?: "lifetime" | "custom";
+  expirationDate?: string | null;
   currentSpend: number;
   maxBudget: number; // 0 for unlimited
   resetCycle: "Daily" | "Weekly" | "Monthly" | "Quarterly" | "Yearly" | "Never";
@@ -90,6 +99,50 @@ export interface OrganizationItem {
   mcpServers?: string[];
   metadata?: string;
   createdBy: string;
+  lastUpdatedOn?: string;
+  updatedBy?: string;
+}
+
+// Expiration Formatter Helper
+export function formatExpirationDisplay(
+  type?: "lifetime" | "custom",
+  dateStr?: string | null
+): { text: string; isExpired: boolean; isLifetime: boolean } {
+  if (!type || type === "lifetime") {
+    return { text: "Lifetime", isExpired: false, isLifetime: true };
+  }
+  if (!dateStr) {
+    return { text: "Lifetime", isExpired: false, isLifetime: true };
+  }
+
+  let expDate: Date;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) {
+    const [y, m, d] = dateStr.trim().split("-").map(Number);
+    expDate = new Date(y, m - 1, d, 23, 59, 59);
+  } else {
+    expDate = new Date(dateStr.includes("T") ? dateStr : dateStr + "T23:59:59");
+  }
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  if (isNaN(expDate.getTime())) {
+    return { text: dateStr, isExpired: false, isLifetime: false };
+  }
+
+  const isExpired = expDate < todayStart;
+
+  const day = String(expDate.getDate()).padStart(2, "0");
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const month = monthNames[expDate.getMonth()];
+  const year = expDate.getFullYear();
+  const formatted = `${day} ${month} ${year}`;
+
+  if (isExpired) {
+    return { text: "Expired", isExpired: true, isLifetime: false };
+  }
+
+  return { text: formatted, isExpired: false, isLifetime: false };
 }
 
 // Initial Mock Organizations
@@ -100,6 +153,8 @@ const mockOrganizations: OrganizationItem[] = [
     name: "HB Enterprise",
     description: "Primary enterprise organization for core platform services and internal AI apps",
     createdDate: "Jul 15, 2026",
+    expirationType: "lifetime",
+    expirationDate: null,
     currentSpend: 18452.90,
     maxBudget: 25000,
     resetCycle: "Monthly",
@@ -130,6 +185,8 @@ const mockOrganizations: OrganizationItem[] = [
     name: "Spine CloudIQ",
     description: "Cloud infrastructure and automated DevOps AI research workspace",
     createdDate: "Jul 18, 2026",
+    expirationType: "custom",
+    expirationDate: "2027-12-31",
     currentSpend: 1850.00,
     maxBudget: 5000,
     resetCycle: "Monthly",
@@ -159,6 +216,8 @@ const mockOrganizations: OrganizationItem[] = [
     name: "CyberShield Ltd",
     description: "Security operations and automated vulnerability analysis unit",
     createdDate: "Jul 20, 2026",
+    expirationType: "custom",
+    expirationDate: "2028-08-15",
     currentSpend: 890.25,
     maxBudget: 2500,
     resetCycle: "Monthly",
@@ -188,6 +247,8 @@ const mockOrganizations: OrganizationItem[] = [
     name: "FinTech Solutions",
     description: "Quantitative analytics and financial modeling sandbox",
     createdDate: "Jul 22, 2026",
+    expirationType: "custom",
+    expirationDate: "2025-05-10",
     currentSpend: 0.00,
     maxBudget: 0, // Unlimited
     resetCycle: "Never",
@@ -378,7 +439,8 @@ export interface OrgMemberItem {
   userId: string;
   name: string;
   email: string;
-  role: "Organization Admin" | "Internal User" | "Internal User Viewer";
+  role: "Organization Admin" | "User" | "Viewer";
+  teams?: string[];
   currentSpend: number;
   createdDate: string;
   joinedDate: string;
@@ -422,6 +484,7 @@ const mockOrgMembers: Record<string, OrgMemberItem[]> = {
       name: "John Doe (Super Admin)",
       email: "superadmin@spinecloudiq.com",
       role: "Organization Admin",
+      teams: ["Engineering", "Security", "Research", "Operations"],
       currentSpend: 1450.00,
       createdDate: "May 10, 2026",
       joinedDate: "Jul 15, 2026",
@@ -433,6 +496,7 @@ const mockOrgMembers: Record<string, OrgMemberItem[]> = {
       name: "Sarah Connor",
       email: "sarah.connor@hb.com",
       role: "Organization Admin",
+      teams: ["Security", "DevOps"],
       currentSpend: 890.50,
       createdDate: "May 14, 2026",
       joinedDate: "Jul 16, 2026",
@@ -443,7 +507,8 @@ const mockOrgMembers: Record<string, OrgMemberItem[]> = {
       userId: "usr-8823c",
       name: "Alex Dev",
       email: "alex.dev@hb.com",
-      role: "Internal User",
+      role: "User",
+      teams: ["AI Lab", "Data Science", "Infrastructure"],
       currentSpend: 620.00,
       createdDate: "Jun 01, 2026",
       joinedDate: "Jul 18, 2026",
@@ -454,7 +519,8 @@ const mockOrgMembers: Record<string, OrgMemberItem[]> = {
       userId: "usr-1104d",
       name: "Michael Scott",
       email: "michael.scott@hb.com",
-      role: "Internal User Viewer",
+      role: "Viewer",
+      teams: ["Core Platform"],
       currentSpend: 0,
       createdDate: "Jun 12, 2026",
       joinedDate: "Jul 20, 2026",
@@ -465,7 +531,8 @@ const mockOrgMembers: Record<string, OrgMemberItem[]> = {
       userId: "usr-5590e",
       name: "Emily Watson",
       email: "emily.watson@yopmail.com",
-      role: "Internal User",
+      role: "User",
+      teams: ["Frontend", "UI/UX", "Product", "Quality Assurance"],
       currentSpend: 0,
       createdDate: "Jul 05, 2026",
       joinedDate: "Jul 25, 2026",
@@ -559,7 +626,7 @@ export default function OrganizationManagement() {
   const [userLookupMethod, setUserLookupMethod] = useState<"email" | "userId">("email");
   const [selectedUserEmail, setSelectedUserEmail] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [selectedMemberRole, setSelectedMemberRole] = useState<OrgMemberItem["role"]>("Internal User");
+  const [selectedMemberRole, setSelectedMemberRole] = useState<OrgMemberItem["role"]>("User");
   const [memberFormTouched, setMemberFormTouched] = useState(false);
 
   // Settings Tab Inline Edit State
@@ -571,6 +638,11 @@ export default function OrganizationManagement() {
   const [settingsResetCycle, setSettingsResetCycle] = useState<OrganizationItem["resetCycle"]>("Monthly");
   const [settingsTpmLimit, setSettingsTpmLimit] = useState("500000");
   const [settingsRpmLimit, setSettingsRpmLimit] = useState("5000");
+
+  // Overview Usage Dashboard Control State
+  const [overviewDateRange, setOverviewDateRange] = useState<"7d" | "30d" | "90d" | "custom">("30d");
+  const [topModelsView, setTopModelsView] = useState<"table" | "chart">("table");
+  const [topTeamsView, setTopTeamsView] = useState<"table" | "chart">("table");
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
@@ -598,12 +670,20 @@ export default function OrganizationManagement() {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [showHeaderActionsMenu, setShowHeaderActionsMenu] = useState(false);
   const [showColumnPanel, setShowColumnPanel] = useState(false);
+  const [openTeamsPopoverId, setOpenTeamsPopoverId] = useState<string | null>(null);
   const columnAnchorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = () => setOpenTeamsPopoverId(null);
+    window.addEventListener("click", handleOutsideClick);
+    return () => window.removeEventListener("click", handleOutsideClick);
+  }, []);
 
   const allColumns: ColumnConfig[] = [
     { key: "orgId", label: "Organization ID" },
     { key: "name", label: "Organization Name" },
     { key: "createdDate", label: "Created Date" },
+    { key: "expiration", label: "Expiration" },
     { key: "currentSpend", label: "Total Spend (USD)" },
     { key: "assignedModels", label: "Models" },
     { key: "tpmLimit", label: "TPM Limit" },
@@ -617,6 +697,7 @@ export default function OrganizationManagement() {
     orgId: true,
     name: true,
     createdDate: true,
+    expiration: true,
     currentSpend: true,
     assignedModels: true,
     tpmLimit: true,
@@ -637,9 +718,20 @@ export default function OrganizationManagement() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
-  const [showLoginAsModal, setShowLoginAsModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [highlightedOrgId, setHighlightedOrgId] = useState<string | null>(null);
+
+  // Add & Edit Model Modal State
+  const [showModelModal, setShowModelModal] = useState(false);
+  const [editingModel, setEditingModel] = useState<OrgModelItem | null>(null);
+  const [modelFormProvider, setModelFormProvider] = useState("OpenAI");
+  const [modelFormName, setModelFormName] = useState("");
+  const [modelFormAlias, setModelFormAlias] = useState("");
+  const [modelFormStatus, setModelFormStatus] = useState<"Active" | "Inactive">("Active");
+
+  // Add Team Modal State
+  const [showAddTeamModal, setShowAddTeamModal] = useState(false);
+  const [newTeamName, setNewTeamName] = useState("");
 
   // Assigned Models Right Drawer State
   const [modelsDrawerOrg, setModelsDrawerOrg] = useState<OrganizationItem | null>(null);
@@ -730,6 +822,19 @@ export default function OrganizationManagement() {
     return activeProviderCards.every((card) => card.selectedModels.length > 0);
   }, [formModelSelectionType, activeProviderCards]);
 
+  // Organization Expiration Form State
+  const [formExpirationType, setFormExpirationType] = useState<"lifetime" | "custom">("lifetime");
+  const [formExpirationDate, setFormExpirationDate] = useState<string>("");
+  const [formExpirationDateError, setFormExpirationDateError] = useState<string>("");
+
+  const getTodayDateString = (): string => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const [formCountry, setFormCountry] = useState("United States");
   const [formState, setFormState] = useState("California");
   const [formCity, setFormCity] = useState("");
@@ -814,14 +919,23 @@ export default function OrganizationManagement() {
   }, [formName, organizations, isEditMode, selectedOrg]);
 
   const isFormValid = useMemo(() => {
-    return (
+    const basicValid =
       formName.trim().length > 0 &&
       formName.length <= 100 &&
       !isDuplicateName &&
       formAdminName.trim().length > 0 &&
-      formAdminEmail.trim().length > 0
-    );
-  }, [formName, isDuplicateName, formAdminName, formAdminEmail]);
+      formAdminEmail.trim().length > 0;
+
+    if (formExpirationType === "custom") {
+      if (!formExpirationDate) return false;
+      const [y, m, d] = formExpirationDate.split("-").map(Number);
+      const selectedMs = new Date(y, m - 1, d, 23, 59, 59).getTime();
+      const todayStart = new Date().setHours(0, 0, 0, 0);
+      if (isNaN(selectedMs) || selectedMs < todayStart) return false;
+    }
+
+    return basicValid;
+  }, [formName, isDuplicateName, formAdminName, formAdminEmail, formExpirationType, formExpirationDate]);
 
   // Derived Members for Selected Organization
   const currentOrgMembers = useMemo(() => {
@@ -849,14 +963,14 @@ export default function OrganizationManagement() {
   const memberKpiStats = useMemo(() => {
     const total = currentOrgMembers.length;
     const admins = currentOrgMembers.filter((m) => m.role === "Organization Admin").length;
-    const users = currentOrgMembers.filter((m) => m.role === "Internal User").length;
-    const viewers = currentOrgMembers.filter((m) => m.role === "Internal User Viewer").length;
+    const users = currentOrgMembers.filter((m) => m.role === "User").length;
+    const viewers = currentOrgMembers.filter((m) => m.role === "Viewer").length;
 
     return [
       { id: "tot-mem", label: "Total Members", value: total.toString() },
       { id: "adm-mem", label: "Organization Admins", value: admins.toString() },
-      { id: "usr-mem", label: "Internal Users", value: users.toString() },
-      { id: "view-mem", label: "View Only Users", value: viewers.toString() },
+      { id: "usr-mem", label: "Users", value: users.toString() },
+      { id: "view-mem", label: "Viewers", value: viewers.toString() },
     ];
   }, [currentOrgMembers]);
 
@@ -883,7 +997,7 @@ export default function OrganizationManagement() {
   const handleOpenAddMemberModal = () => {
     setSelectedUserEmail(mockSystemUsers[0]?.email || "");
     setSelectedUserId(mockSystemUsers[0]?.id || "");
-    setSelectedMemberRole("Internal User");
+    setSelectedMemberRole("User");
     setUserLookupMethod("email");
     setMemberFormTouched(false);
     setShowAddMemberModal(true);
@@ -974,6 +1088,83 @@ export default function OrganizationManagement() {
     setShowRemoveMemberModal(false);
   };
 
+  // Model Tab Handlers (Popup / Modal Workflow)
+  const handleOpenAddModelModal = () => {
+    setEditingModel(null);
+    setModelFormProvider("OpenAI");
+    setModelFormName("");
+    setModelFormAlias("");
+    setModelFormStatus("Active");
+    setShowModelModal(true);
+  };
+
+  const handleOpenEditModelModal = (mod: OrgModelItem) => {
+    setEditingModel(mod);
+    setModelFormProvider(mod.provider);
+    setModelFormName(mod.modelName);
+    setModelFormAlias(mod.modelAlias);
+    setModelFormStatus(mod.status);
+    setShowModelModal(true);
+  };
+
+  const handleSaveModel = () => {
+    if (!selectedOrg || !modelFormName.trim()) return;
+    const currentList = mockOrgModels[selectedOrg.id] || [];
+
+    if (editingModel) {
+      const updated = currentList.map((m) =>
+        m.id === editingModel.id
+          ? {
+              ...m,
+              provider: modelFormProvider,
+              modelName: modelFormName.trim(),
+              modelAlias: modelFormAlias.trim() || `<${modelFormName.toLowerCase().replace(/\s+/g, "-")}>`,
+              status: modelFormStatus,
+            }
+          : m
+      );
+      mockOrgModels[selectedOrg.id] = updated;
+      toast.success(`Updated model configuration for '${modelFormName.trim()}'`);
+    } else {
+      const newModel: OrgModelItem = {
+        id: `mod-${Date.now()}`,
+        provider: modelFormProvider,
+        modelName: modelFormName.trim(),
+        modelAlias: modelFormAlias.trim() || `<${modelFormName.toLowerCase().replace(/\s+/g, "-")}>`,
+        status: modelFormStatus,
+        addedOn: "Today",
+      };
+      mockOrgModels[selectedOrg.id] = [newModel, ...currentList];
+      toast.success(`Added new model '${modelFormName.trim()}' to organization!`);
+    }
+    setShowModelModal(false);
+  };
+
+  const handleRemoveModel = (modId: string, modName: string) => {
+    if (!selectedOrg) return;
+    const currentList = mockOrgModels[selectedOrg.id] || [];
+    mockOrgModels[selectedOrg.id] = currentList.filter((m) => m.id !== modId);
+    toast.success(`Removed model '${modName}' from organization`);
+  };
+
+  // Team Tab Handlers (Popup / Modal Workflow)
+  const handleSaveAddTeam = () => {
+    if (!selectedOrg || !newTeamName.trim()) return;
+    const currentTeams = mockOrgTeams[selectedOrg.id] || [];
+    const newTeam: OrgTeamItem = {
+      id: `team-${Date.now()}`,
+      name: newTeamName.trim(),
+      membersCount: 1,
+      spend: 0.00,
+      createdOn: "Today",
+      status: "Active",
+    };
+    mockOrgTeams[selectedOrg.id] = [newTeam, ...currentTeams];
+    toast.success(`Added team '${newTeamName.trim()}' to organization!`);
+    setNewTeamName("");
+    setShowAddTeamModal(false);
+  };
+
   // Settings Tab Handlers
   const handleStartInlineSettingsEdit = () => {
     if (!selectedOrg) return;
@@ -1044,7 +1235,7 @@ export default function OrganizationManagement() {
       },
       {
         id: "total-budget",
-        label: "Total Budget Allocated",
+        label: "Total Spend",
         value: `$${totalBudget.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
         subValue: "Current Monthly Cap",
       },
@@ -1159,6 +1350,9 @@ export default function OrganizationManagement() {
     setSelectedOrg(null);
     setFormName("");
     setFormDescription("");
+    setFormExpirationType("lifetime");
+    setFormExpirationDate("");
+    setFormExpirationDateError("");
     setFormModelSelectionType("selected");
     setActiveProviderCards([
       { providerId: "openai", providerName: "OpenAI", selectedModels: ["GPT-4o", "GPT-4 Mini"] },
@@ -1183,6 +1377,9 @@ export default function OrganizationManagement() {
     setIsEditMode(true);
     setFormName(org.name);
     setFormDescription(org.description || "");
+    setFormExpirationType(org.expirationType || "lifetime");
+    setFormExpirationDate(org.expirationDate || "");
+    setFormExpirationDateError("");
     setFormModelSelectionType(org.modelSelectionType || "selected");
     
     const initialCards: ActiveProviderCard[] = [];
@@ -1222,6 +1419,23 @@ export default function OrganizationManagement() {
 
   const handleSaveOrganization = () => {
     setFormTouched(true);
+
+    if (formExpirationType === "custom") {
+      if (!formExpirationDate) {
+        setFormExpirationDateError("Expiration Date is required when Custom Expiration is selected.");
+        toast.error("Please select a valid Expiration Date.");
+        return;
+      }
+      const [y, m, d] = formExpirationDate.split("-").map(Number);
+      const selectedMs = new Date(y, m - 1, d, 23, 59, 59).getTime();
+      const todayStart = new Date().setHours(0, 0, 0, 0);
+      if (isNaN(selectedMs) || selectedMs < todayStart) {
+        setFormExpirationDateError("Expiration Date must be today or a future date.");
+        toast.error("Expiration Date cannot be in the past.");
+        return;
+      }
+    }
+
     if (!isFormValid) return;
 
     setIsSubmitting(true);
@@ -1239,6 +1453,8 @@ export default function OrganizationManagement() {
           ...selectedOrg,
           name: formName.trim(),
           description: formDescription.trim(),
+          expirationType: formExpirationType,
+          expirationDate: formExpirationType === "custom" ? formExpirationDate : null,
           modelSelectionType: formModelSelectionType,
           assignedModels: finalModels,
           country: formCountry,
@@ -1249,6 +1465,8 @@ export default function OrganizationManagement() {
           primaryAdminName: formAdminName,
           primaryAdminEmail: formAdminEmail,
           primaryAdminPhone: formAdminPhone,
+          lastUpdatedOn: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+          updatedBy: "superadmin@spinecloudiq.com",
         };
 
         setOrganizations((prev) =>
@@ -1266,6 +1484,8 @@ export default function OrganizationManagement() {
           name: formName.trim(),
           description: formDescription.trim(),
           createdDate: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+          expirationType: formExpirationType,
+          expirationDate: formExpirationType === "custom" ? formExpirationDate : null,
           currentSpend: 0.0,
           maxBudget: 5000,
           resetCycle: "Monthly",
@@ -1435,6 +1655,77 @@ export default function OrganizationManagement() {
                     rows={3}
                     className="w-full p-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
                   />
+                </div>
+
+                {/* Organization Expiration */}
+                <div className="space-y-3 md:col-span-2 pt-3 border-t border-neutral-100 dark:border-neutral-800">
+                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                    Organization Expiration <span className="text-rose-500">*</span>
+                  </label>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="radio"
+                        name="expirationType"
+                        value="lifetime"
+                        checked={formExpirationType === "lifetime"}
+                        onChange={() => {
+                          setFormExpirationType("lifetime");
+                          setFormExpirationDate("");
+                          setFormExpirationDateError("");
+                        }}
+                        className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-neutral-300 dark:border-neutral-700"
+                      />
+                      <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                        Lifetime
+                      </span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="radio"
+                        name="expirationType"
+                        value="custom"
+                        checked={formExpirationType === "custom"}
+                        onChange={() => {
+                          setFormExpirationType("custom");
+                          setFormExpirationDateError("");
+                        }}
+                        className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-neutral-300 dark:border-neutral-700"
+                      />
+                      <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                        Custom Expiration Date
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Custom Expiration Date Picker (Conditional) */}
+                  {formExpirationType === "custom" && (
+                    <div className="pt-2 max-w-xs space-y-1.5 animate-fadeIn">
+                      <label htmlFor="expirationDateInput" className="block text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+                        Expiration Date <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        id="expirationDateInput"
+                        type="date"
+                        min={getTodayDateString()}
+                        value={formExpirationDate}
+                        onChange={(e) => {
+                          setFormExpirationDate(e.target.value);
+                          if (formExpirationDateError) setFormExpirationDateError("");
+                        }}
+                        className={`w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all ${
+                          formExpirationDateError
+                            ? "border-rose-500 bg-rose-50/20"
+                            : "border-neutral-300 dark:border-neutral-700"
+                        }`}
+                      />
+                      {formExpirationDateError && (
+                        <p className="text-[11px] text-rose-500 font-medium">{formExpirationDateError}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1905,6 +2196,7 @@ export default function OrganizationManagement() {
                     )}
 
                     {visibleColumns.createdDate && <th className="py-3 px-4">Created Date</th>}
+                    {visibleColumns.expiration && <th className="py-3 px-4">Expiration</th>}
                     {visibleColumns.currentSpend && <th className="py-3 px-4 text-right">Total Spend (USD)</th>}
                     {visibleColumns.assignedModels && <th className="py-3 px-4">Models</th>}
                     {visibleColumns.tpmLimit && <th className="py-3 px-4">TPM Limit</th>}
@@ -1987,6 +2279,34 @@ export default function OrganizationManagement() {
                           )}
 
                           {visibleColumns.createdDate && <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">{item.createdDate}</td>}
+
+                          {/* Expiration Column */}
+                          {visibleColumns.expiration && (
+                            <td className="py-3.5 px-4 whitespace-nowrap text-xs">
+                              {(() => {
+                                const exp = formatExpirationDisplay(item.expirationType, item.expirationDate);
+                                if (exp.isExpired) {
+                                  return (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                                      Expired
+                                    </span>
+                                  );
+                                }
+                                if (exp.isLifetime) {
+                                  return (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700">
+                                      Lifetime
+                                    </span>
+                                  );
+                                }
+                                return (
+                                  <span className="font-medium text-neutral-800 dark:text-neutral-200">
+                                    {exp.text}
+                                  </span>
+                                );
+                              })()}
+                            </td>
+                          )}
 
                           {/* Lifetime Spend (USD) Column (Right Aligned) */}
                           {visibleColumns.currentSpend && (
@@ -2111,19 +2431,6 @@ export default function OrganizationManagement() {
                                   <span>{item.status === "Active" ? "Deactivate" : "Activate"}</span>
                                 </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveMenuId(null);
-                                    setSelectedOrg(item);
-                                    setShowLoginAsModal(true);
-                                  }}
-                                  className="w-full px-3 py-2 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 flex items-center gap-2"
-                                >
-                                  <LogIn className="w-3.5 h-3.5 text-neutral-500" />
-                                  <span>Login as Organization</span>
-                                </button>
-
                                 <hr className="my-1 border-neutral-100 dark:border-neutral-800" />
 
                                 <button
@@ -2220,18 +2527,6 @@ export default function OrganizationManagement() {
                       <span>{selectedOrg.status === "Active" ? "Deactivate" : "Activate"}</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowHeaderActionsMenu(false);
-                        setShowLoginAsModal(true);
-                      }}
-                      className="w-full px-3.5 py-2 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 flex items-center gap-2"
-                    >
-                      <LogIn className="w-3.5 h-3.5 text-neutral-500" />
-                      <span>Login as Organization</span>
-                    </button>
-
                     <hr className="my-1 border-neutral-100 dark:border-neutral-800" />
 
                     <button
@@ -2250,7 +2545,7 @@ export default function OrganizationManagement() {
               </div>
             </div>
 
-            {/* Original HB Header Summary Card */}
+            {/* Consolidated HB Header Summary Card */}
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-xs space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-neutral-100 dark:border-neutral-800">
                 <div className="space-y-1">
@@ -2278,13 +2573,19 @@ export default function OrganizationManagement() {
                 <div className="flex items-center gap-4 text-xs">
                   <div className="text-right">
                     <div className="text-neutral-400 font-medium">Total Spend</div>
-                    <div className="text-xl font-bold text-neutral-900 dark:text-white font-mono">${selectedOrg.currentSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+                    <div className="text-xl font-bold text-neutral-900 dark:text-white font-mono">
+                      ${selectedOrg.currentSpend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Metadata Header Row */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 text-xs">
+              {/* Consolidated Header Metadata Row */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-xs">
+                <div className="min-w-0">
+                  <div className="text-neutral-400 font-medium mb-1">Created Date</div>
+                  <div className="font-semibold text-neutral-800 dark:text-neutral-200">{selectedOrg.createdDate}</div>
+                </div>
                 <div className="min-w-0">
                   <div className="text-neutral-400 font-medium mb-1">Created By</div>
                   <div className="font-semibold text-neutral-800 dark:text-neutral-200 truncate" title={getUserDisplayName(selectedOrg.createdBy).fullText}>
@@ -2292,11 +2593,7 @@ export default function OrganizationManagement() {
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-neutral-400 font-medium mb-1">Created Date</div>
-                  <div className="font-semibold text-neutral-800 dark:text-neutral-200">{selectedOrg.createdDate}</div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-neutral-400 font-medium mb-1">Last Updated On</div>
+                  <div className="text-neutral-400 font-medium mb-1">Updated Date</div>
                   <div className="font-semibold text-neutral-800 dark:text-neutral-200">{selectedOrg.lastUpdatedOn || "Jul 28, 2026"}</div>
                 </div>
                 <div className="min-w-0">
@@ -2306,20 +2603,31 @@ export default function OrganizationManagement() {
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-neutral-400 font-medium mb-1">TPM Limit</div>
-                  <div className="font-mono font-semibold text-neutral-800 dark:text-neutral-200">{selectedOrg.tpmLimit.toLocaleString()}</div>
+                  <div className="text-neutral-400 font-medium mb-1">Expiration</div>
+                  <div className="font-semibold text-neutral-800 dark:text-neutral-200">
+                    {(() => {
+                      const exp = formatExpirationDisplay(selectedOrg.expirationType, selectedOrg.expirationDate);
+                      if (exp.isExpired) {
+                        return (
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200">
+                            Expired
+                          </span>
+                        );
+                      }
+                      if (exp.isLifetime) {
+                        return (
+                          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200">
+                            Lifetime
+                          </span>
+                        );
+                      }
+                      return exp.text;
+                    })()}
+                  </div>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-neutral-400 font-medium mb-1">RPM Limit</div>
-                  <div className="font-mono font-semibold text-neutral-800 dark:text-neutral-200">{selectedOrg.rpmLimit.toLocaleString()}</div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-neutral-400 font-medium mb-1">Members</div>
-                  <div className="font-semibold text-primary-600">{selectedOrg.membersCount} Active Members</div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-neutral-400 font-medium mb-1">Total Spend</div>
-                  <div className="font-mono font-semibold text-neutral-900 dark:text-white">${selectedOrg.currentSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+                  <div className="text-neutral-400 font-medium mb-1">Status</div>
+                  <div>{renderStatusBadge(selectedOrg.status)}</div>
                 </div>
               </div>
             </div>
@@ -2327,13 +2635,13 @@ export default function OrganizationManagement() {
             {/* Standard HB Horizontal Tabs */}
             <div className="border-b border-neutral-200 dark:border-neutral-800 overflow-x-auto">
               <div className="flex gap-6 text-xs font-semibold min-w-max">
-                {(["overview", "members", "models", "teams"] as const).map((tab) => (
+                {(["overview", "models", "teams", "members"] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setDetailTab(tab)}
                     className={`py-2.5 border-b-2 capitalize transition-colors ${
                       detailTab === tab
-                        ? "border-primary-600 text-primary-600 dark:text-primary-400"
+                        ? "border-primary-600 text-primary-600 dark:text-primary-400 font-bold"
                         : "border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-white"
                     }`}
                   >
@@ -2343,198 +2651,722 @@ export default function OrganizationManagement() {
               </div>
             </div>
 
-            {/* OVERVIEW TAB */}
+            {/* 1. OVERVIEW TAB (Organization Usage Dashboard) */}
             {detailTab === "overview" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 text-xs">
-                {/* CARD 1 — ORGANIZATION INFORMATION */}
-                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs hover:shadow-md transition-shadow space-y-3.5">
-                  <div className="flex items-center gap-2 pb-2.5 border-b border-neutral-100 dark:border-neutral-800">
-                    <Building2 className="w-4 h-4 text-primary-600" />
-                    <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
-                      Organization Information
-                    </h3>
-                  </div>
-                  <div className="space-y-2.5">
-                    <div className="flex justify-between items-center">
-                      <span className="text-neutral-400 font-medium">Organization Name:</span>
-                      <span className="font-semibold text-neutral-900 dark:text-white">{selectedOrg.name}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-neutral-400 font-medium">Organization ID:</span>
-                      <div className="flex items-center gap-1 font-mono text-[11px]">
-                        <span className="truncate max-w-[120px]">{selectedOrg.orgId}</span>
-                        <button type="button" onClick={() => handleCopyText(selectedOrg.orgId, "Copied Organization ID!")} title="Copy Org ID">
-                          <Copy className="w-3 h-3 text-neutral-400 hover:text-primary-600" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-neutral-400 font-medium">Created Date:</span>
-                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">{selectedOrg.createdDate}</span>
-                    </div>
-                    <div className="flex justify-between items-start">
-                      <span className="text-neutral-400 font-medium mt-0.5">Created By:</span>
-                      <div className="text-right">
-                        <div className="font-semibold text-neutral-900 dark:text-white" title={getUserDisplayName(selectedOrg.createdBy).fullText}>
-                          {getUserDisplayName(selectedOrg.createdBy).name}
-                        </div>
-                        {getUserDisplayName(selectedOrg.createdBy).email && (
-                          <div className="text-[10px] text-neutral-400 font-mono">{getUserDisplayName(selectedOrg.createdBy).email}</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-neutral-400 font-medium">Last Updated On:</span>
-                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">{selectedOrg.lastUpdatedOn || "Jul 28, 2026"}</span>
-                    </div>
-                    <div className="flex justify-between items-start">
-                      <span className="text-neutral-400 font-medium mt-0.5">Updated By:</span>
-                      <div className="text-right">
-                        <div className="font-semibold text-neutral-900 dark:text-white" title={getUserDisplayName(selectedOrg.updatedBy || selectedOrg.createdBy).fullText}>
-                          {getUserDisplayName(selectedOrg.updatedBy || selectedOrg.createdBy).name}
-                        </div>
-                        {getUserDisplayName(selectedOrg.updatedBy || selectedOrg.createdBy).email && (
-                          <div className="text-[10px] text-neutral-400 font-mono">{getUserDisplayName(selectedOrg.updatedBy || selectedOrg.createdBy).email}</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-neutral-400 font-medium">Status:</span>
-                      {renderStatusBadge(selectedOrg.status)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* CARD 2 — ASSIGNED MODELS (REPLACES BUDGET SUMMARY) */}
-                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs hover:shadow-md transition-shadow space-y-3.5">
-                  <div className="flex items-center justify-between pb-2.5 border-b border-neutral-100 dark:border-neutral-800">
-                    <div className="flex items-center gap-2">
-                      <Cpu className="w-4 h-4 text-emerald-600" />
-                      <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
-                        Assigned Models
-                      </h3>
-                    </div>
-                    <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200/50">
-                      {getModelCount(selectedOrg)} Models
-                    </span>
-                  </div>
-                  
-                  {/* Grouped Models Content */}
-                  <div className="max-h-52 overflow-y-auto space-y-3 pr-1">
-                    {(() => {
-                      const modelsList = mockOrgModels[selectedOrg.id] || [];
-                      const grouped = new Map<string, string[]>();
-
-                      if (selectedOrg.modelSelectionType === "all" || selectedOrg.assignedModels.includes("All Models")) {
-                        AI_PROVIDERS.forEach((p) => {
-                          grouped.set(p.name, p.models.map((m) => m.name));
-                        });
-                      } else if (modelsList.length > 0) {
-                        modelsList.forEach((m) => {
-                          if (!grouped.has(m.provider)) grouped.set(m.provider, []);
-                          grouped.get(m.provider)!.push(m.modelName);
-                        });
-                      } else {
-                        selectedOrg.assignedModels.forEach((mName) => {
-                          const pObj = AI_PROVIDERS.find((p) => p.models.some((mod) => mod.name.toLowerCase() === mName.toLowerCase()));
-                          const pName = pObj ? pObj.name : "Other Providers";
-                          if (!grouped.has(pName)) grouped.set(pName, []);
-                          grouped.get(pName)!.push(mName);
-                        });
-                      }
-
-                      if (grouped.size === 0) {
-                        return <div className="text-neutral-400 text-xs py-4 text-center">No models assigned to this organization.</div>;
-                      }
-
-                      return Array.from(grouped.entries()).map(([provider, models]) => (
-                        <div key={provider} className="space-y-1.5">
-                          <div className="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider flex items-center justify-between">
-                            <span>{provider}</span>
-                            <span className="text-neutral-400 text-[10px] font-normal">({models.length})</span>
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {models.map((mName) => (
-                              <span
-                                key={mName}
-                                className="px-2 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[11px] font-medium text-neutral-800 dark:text-neutral-200 border border-neutral-200/60 dark:border-neutral-750"
-                              >
-                                {mName}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                </div>
-
-                {/* CARD 3 — RATE LIMITS */}
-                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs hover:shadow-md transition-shadow space-y-3.5">
-                  <div className="flex items-center gap-2 pb-2.5 border-b border-neutral-100 dark:border-neutral-800">
-                    <ShieldCheck className="w-4 h-4 text-amber-600" />
-                    <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
-                      Rate Limits
-                    </h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <div className="p-3 bg-neutral-50 dark:bg-neutral-800/60 rounded-lg text-center">
-                      <div className="text-neutral-400 text-[10px] font-semibold uppercase">TPM Limit</div>
-                      <div className="text-lg font-bold text-neutral-900 dark:text-white font-mono mt-0.5">
-                        {selectedOrg.tpmLimit ? selectedOrg.tpmLimit.toLocaleString() : "Unlimited"}
-                      </div>
-                    </div>
-                    <div className="p-3 bg-neutral-50 dark:bg-neutral-800/60 rounded-lg text-center">
-                      <div className="text-neutral-400 text-[10px] font-semibold uppercase">RPM Limit</div>
-                      <div className="text-lg font-bold text-neutral-900 dark:text-white font-mono mt-0.5">
-                        {selectedOrg.rpmLimit ? selectedOrg.rpmLimit.toLocaleString() : "Unlimited"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* CARD 4 — ASSIGNED TEAMS */}
-                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs hover:shadow-md transition-shadow space-y-3.5 flex flex-col justify-between">
+              <div className="space-y-6 animate-fadeIn text-xs">
+                {/* SECTION 9: Top Toolbar & Date Range Selector */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-2xs">
                   <div>
-                    <div className="flex items-center justify-between pb-2.5 border-b border-neutral-100 dark:border-neutral-800">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-blue-600" />
-                        <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
-                          Assigned Teams
-                        </h3>
-                      </div>
-                      <span className="font-bold text-xs text-primary-600">
-                        {(mockOrgTeams[selectedOrg.id] || []).length} Teams
-                      </span>
-                    </div>
-                    <div className="space-y-2 mt-3">
-                      {(mockOrgTeams[selectedOrg.id] || []).map((t) => (
-                        <div
-                          key={t.id}
-                          className="p-2 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg flex items-center justify-between text-neutral-800 dark:text-neutral-200 text-xs font-medium"
-                        >
-                          <span>{t.name}</span>
-                          <span className="font-mono font-bold text-neutral-900 dark:text-white">
-                            ${t.spend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                    <h3 className="font-bold text-sm text-neutral-900 dark:text-white flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-primary-600" />
+                      <span>Organization Usage Analytics</span>
+                    </h3>
+                    <p className="text-[11px] text-neutral-500 mt-0.5">
+                      Usage, spend, tokens, and request telemetry scoped to <strong className="text-neutral-700 dark:text-neutral-300">{selectedOrg.name}</strong>
+                    </p>
                   </div>
-                  <div className="pt-2 text-right">
-                    <button 
-                      type="button" 
-                      onClick={() => setDetailTab("teams")}
-                      className="text-xs font-bold text-primary-600 dark:text-primary-400 hover:underline cursor-pointer"
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-neutral-400 text-[11px] font-medium hidden sm:inline">Time Range:</span>
+                    <select
+                      value={overviewDateRange}
+                      onChange={(e) => setOverviewDateRange(e.target.value as any)}
+                      className="h-9 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-semibold text-neutral-800 dark:text-neutral-200"
                     >
-                      View All Teams →
-                    </button>
+                      <option value="7d">Last 7 Days</option>
+                      <option value="30d">Last 30 Days</option>
+                      <option value="90d">Last 90 Days</option>
+                      <option value="custom">Custom Range</option>
+                    </select>
+                    <IconButton
+                      icon={RefreshCw}
+                      label="Refresh"
+                      onClick={() => toast.success(`Refreshed usage data for ${selectedOrg.name}`)}
+                    />
+                  </div>
+                </div>
+
+                {/* Empty State Check */}
+                {selectedOrg.currentSpend === 0 && currentOrgMembers.length === 0 ? (
+                  <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-12 text-center space-y-3 shadow-2xs">
+                    <BarChart3 className="w-12 h-12 mx-auto text-neutral-300 dark:text-neutral-700 stroke-1" />
+                    <h4 className="text-base font-bold text-neutral-800 dark:text-neutral-200">No usage data available for this organization.</h4>
+                    <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+                      There are no request logs or token telemetry recorded for this organization during the selected time period.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* SECTION 1: Organization Usage Overview (5 KPI Cards) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+                      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-2xs hover:shadow-md transition-all space-y-1">
+                        <div className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400 flex items-center justify-between">
+                          <span>Total Spend</span>
+                          <DollarSign className="w-4 h-4 text-emerald-600" />
+                        </div>
+                        <div className="text-xl font-bold text-neutral-900 dark:text-white font-mono">
+                          ${selectedOrg.currentSpend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3" /> +12.4% vs last period
+                        </div>
+                      </div>
+
+                      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-2xs hover:shadow-md transition-all space-y-1">
+                        <div className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400 flex items-center justify-between">
+                          <span>Total Requests</span>
+                          <Activity className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div className="text-xl font-bold text-neutral-900 dark:text-white font-mono">
+                          1,420,000
+                        </div>
+                        <div className="text-[10px] text-neutral-400 font-medium">
+                          1,420 Req / Hour avg
+                        </div>
+                      </div>
+
+                      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-2xs hover:shadow-md transition-all space-y-1">
+                        <div className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400 flex items-center justify-between">
+                          <span>Successful Requests</span>
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                        </div>
+                        <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                          1,419,720
+                        </div>
+                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                          99.98% Success Rate
+                        </div>
+                      </div>
+
+                      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-2xs hover:shadow-md transition-all space-y-1">
+                        <div className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400 flex items-center justify-between">
+                          <span>Failed Requests</span>
+                          <AlertTriangle className="w-4 h-4 text-rose-500" />
+                        </div>
+                        <div className="text-xl font-bold text-rose-600 dark:text-rose-400 font-mono">
+                          280
+                        </div>
+                        <div className="text-[10px] text-rose-500 font-medium">
+                          0.02% Error Rate (HTTP 5xx)
+                        </div>
+                      </div>
+
+                      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-2xs hover:shadow-md transition-all space-y-1">
+                        <div className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400 flex items-center justify-between">
+                          <span>Total Tokens</span>
+                          <Zap className="w-4 h-4 text-amber-500" />
+                        </div>
+                        <div className="text-xl font-bold text-neutral-900 dark:text-white font-mono">
+                          28,450,000
+                        </div>
+                        <div className="text-[10px] text-neutral-400 font-medium">
+                          Prompt + Completion Tokens
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SECTION 2: Spend Trend */}
+                    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-emerald-600" />
+                          <h3 className="font-bold text-sm text-neutral-900 dark:text-white">Spend Trend</h3>
+                        </div>
+                        <span className="text-[11px] font-mono text-emerald-600 font-bold">
+                          ${selectedOrg.currentSpend.toFixed(2)} Total ({overviewDateRange.toUpperCase()})
+                        </span>
+                      </div>
+
+                      <div className="h-44 flex items-end justify-between gap-3 pt-6 pb-2 px-4 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50/50 dark:bg-neutral-800/40 rounded-xl">
+                        {[
+                          { date: "Day 1", val: 380 },
+                          { date: "Day 5", val: 520 },
+                          { date: "Day 10", val: 890 },
+                          { date: "Day 15", val: 1240 },
+                          { date: "Day 20", val: 1850 },
+                          { date: "Day 25", val: 2310 },
+                          { date: "Day 30", val: selectedOrg.currentSpend },
+                        ].map((d, idx, arr) => {
+                          const maxVal = Math.max(...arr.map(a => a.val)) || 1;
+                          const heightPct = Math.max(15, Math.round((d.val / maxVal) * 100));
+                          return (
+                            <div key={d.date} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+                              <div className="text-[10px] font-mono text-neutral-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                ${d.val.toFixed(0)}
+                              </div>
+                              <div 
+                                className="w-full bg-emerald-500/80 hover:bg-emerald-600 rounded-t transition-all duration-300"
+                                style={{ height: `${heightPct}%` }}
+                              />
+                              <span className="text-[10px] font-medium text-neutral-400">{d.date}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* SECTION 3 & SECTION 4: Top Teams & Top Members Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                      {/* SECTION 3: Top Teams by Spend */}
+                      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-purple-600" />
+                            <h3 className="font-bold text-sm text-neutral-900 dark:text-white">Top Teams by Spend</h3>
+                          </div>
+                          <div className="flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 p-0.5 rounded-lg">
+                            <button
+                              type="button"
+                              onClick={() => setTopTeamsView("table")}
+                              className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors ${topTeamsView === "table" ? "bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white shadow-2xs" : "text-neutral-500"}`}
+                            >
+                              Table
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTopTeamsView("chart")}
+                              className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors ${topTeamsView === "chart" ? "bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white shadow-2xs" : "text-neutral-500"}`}
+                            >
+                              Chart
+                            </button>
+                          </div>
+                        </div>
+
+                        {topTeamsView === "table" ? (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-xs">
+                              <thead>
+                                <tr className="border-b border-neutral-100 dark:border-neutral-800 text-neutral-400 font-semibold">
+                                  <th className="py-2 px-2">Team Name</th>
+                                  <th className="py-2 px-2">Spend</th>
+                                  <th className="py-2 px-2">Success Req</th>
+                                  <th className="py-2 px-2">Failed Req</th>
+                                  <th className="py-2 px-2">Tokens</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/60 font-medium">
+                                {(mockOrgTeams[selectedOrg.id] || []).map((t, idx) => (
+                                  <tr key={t.id} className="hover:bg-neutral-50/60 dark:hover:bg-neutral-800/40">
+                                    <td className="py-2.5 px-2 font-bold text-neutral-900 dark:text-white">{t.name}</td>
+                                    <td className="py-2.5 px-2 font-mono font-semibold text-emerald-600">${t.spend.toFixed(2)}</td>
+                                    <td className="py-2.5 px-2 font-mono text-neutral-600 dark:text-neutral-400">{idx === 0 ? "820,400" : "410,200"}</td>
+                                    <td className="py-2.5 px-2 font-mono text-rose-500">{idx === 0 ? "140" : "60"}</td>
+                                    <td className="py-2.5 px-2 font-mono text-neutral-500">{idx === 0 ? "14.2M" : "8.1M"}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="space-y-3 pt-2">
+                            {(mockOrgTeams[selectedOrg.id] || []).map((t) => {
+                              const pct = Math.min(100, Math.round((t.spend / (selectedOrg.currentSpend || 1)) * 100));
+                              return (
+                                <div key={t.id} className="space-y-1">
+                                  <div className="flex justify-between text-xs font-semibold">
+                                    <span>{t.name}</span>
+                                    <span className="font-mono text-emerald-600">${t.spend.toFixed(2)} ({pct}%)</span>
+                                  </div>
+                                  <div className="w-full bg-neutral-100 dark:bg-neutral-800 h-2 rounded-full overflow-hidden">
+                                    <div className="bg-purple-600 h-full rounded-full" style={{ width: `${pct}%` }} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* SECTION 4: Top Members (Users) */}
+                      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4 text-blue-600" />
+                            <h3 className="font-bold text-sm text-neutral-900 dark:text-white">Top Members by Spend</h3>
+                          </div>
+                          <span className="text-[11px] font-medium text-neutral-400">Sortable by Usage</span>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="border-b border-neutral-100 dark:border-neutral-800 text-neutral-400 font-semibold">
+                                <th className="py-2 px-2">User</th>
+                                <th className="py-2 px-2">Spend</th>
+                                <th className="py-2 px-2">Requests</th>
+                                <th className="py-2 px-2">Tokens</th>
+                                <th className="py-2 px-2 text-right">Success Rate</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/60 font-medium">
+                              {currentOrgMembers.slice(0, 4).map((m, idx) => (
+                                <tr key={m.id} className="hover:bg-neutral-50/60 dark:hover:bg-neutral-800/40">
+                                  <td className="py-2.5 px-2">
+                                    <div className="font-bold text-neutral-900 dark:text-white truncate max-w-[130px]">{m.name}</div>
+                                    <div className="text-[10px] text-neutral-400 truncate max-w-[130px]">{m.email}</div>
+                                  </td>
+                                  <td className="py-2.5 px-2 font-mono font-semibold text-emerald-600">${m.currentSpend.toFixed(2)}</td>
+                                  <td className="py-2.5 px-2 font-mono text-neutral-600 dark:text-neutral-400">{idx === 0 ? "420k" : "180k"}</td>
+                                  <td className="py-2.5 px-2 font-mono text-neutral-500">{idx === 0 ? "8.4M" : "3.2M"}</td>
+                                  <td className="py-2.5 px-2 font-mono text-right text-emerald-600 font-semibold">99.9%</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SECTION 5 & SECTION 6: Top Models & Provider Usage Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                      {/* SECTION 5: Top Models */}
+                      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                          <div className="flex items-center gap-2">
+                            <Cpu className="w-4 h-4 text-amber-600" />
+                            <h3 className="font-bold text-sm text-neutral-900 dark:text-white">Top Models</h3>
+                          </div>
+                          <div className="flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 p-0.5 rounded-lg">
+                            <button
+                              type="button"
+                              onClick={() => setTopModelsView("table")}
+                              className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors ${topModelsView === "table" ? "bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white shadow-2xs" : "text-neutral-500"}`}
+                            >
+                              Table View
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTopModelsView("chart")}
+                              className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors ${topModelsView === "chart" ? "bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white shadow-2xs" : "text-neutral-500"}`}
+                            >
+                              Chart View
+                            </button>
+                          </div>
+                        </div>
+
+                        {topModelsView === "table" ? (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-xs">
+                              <thead>
+                                <tr className="border-b border-neutral-100 dark:border-neutral-800 text-neutral-400 font-semibold">
+                                  <th className="py-2 px-2">Model</th>
+                                  <th className="py-2 px-2">Spend</th>
+                                  <th className="py-2 px-2">Successful</th>
+                                  <th className="py-2 px-2">Failed</th>
+                                  <th className="py-2 px-2 text-right">Tokens</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/60 font-medium">
+                                {(mockOrgModels[selectedOrg.id] || []).slice(0, 4).map((m, idx) => (
+                                  <tr key={m.id} className="hover:bg-neutral-50/60 dark:hover:bg-neutral-800/40">
+                                    <td className="py-2.5 px-2">
+                                      <div className="font-bold text-neutral-900 dark:text-white">{m.modelName}</div>
+                                      <div className="text-[10px] text-neutral-400 font-mono">{m.provider}</div>
+                                    </td>
+                                    <td className="py-2.5 px-2 font-mono font-semibold text-emerald-600">${(selectedOrg.currentSpend * (0.5 - idx * 0.1)).toFixed(2)}</td>
+                                    <td className="py-2.5 px-2 font-mono text-neutral-600 dark:text-neutral-400">{idx === 0 ? "710,000" : "340,000"}</td>
+                                    <td className="py-2.5 px-2 font-mono text-rose-500">{idx === 0 ? "120" : "40"}</td>
+                                    <td className="py-2.5 px-2 font-mono text-right text-neutral-500">{idx === 0 ? "14.2M" : "6.8M"}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="space-y-3 pt-2">
+                            {(mockOrgModels[selectedOrg.id] || []).slice(0, 4).map((m, idx) => {
+                              const sharePct = [50, 30, 15, 5][idx] || 10;
+                              return (
+                                <div key={m.id} className="space-y-1">
+                                  <div className="flex justify-between text-xs font-semibold">
+                                    <span>{m.modelName} ({m.provider})</span>
+                                    <span className="font-mono text-amber-600">{sharePct}% Usage Share</span>
+                                  </div>
+                                  <div className="w-full bg-neutral-100 dark:bg-neutral-800 h-2 rounded-full overflow-hidden">
+                                    <div className="bg-amber-500 h-full rounded-full" style={{ width: `${sharePct}%` }} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* SECTION 6: Provider Usage */}
+                      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                          <div className="flex items-center gap-2">
+                            <PieChart className="w-4 h-4 text-purple-600" />
+                            <h3 className="font-bold text-sm text-neutral-900 dark:text-white">Provider Usage</h3>
+                          </div>
+                          <span className="text-[11px] font-medium text-neutral-400">3 AI Providers</span>
+                        </div>
+
+                        <div className="space-y-3 pt-1">
+                          <div className="w-full bg-neutral-200 dark:bg-neutral-700 h-3 rounded-full overflow-hidden flex">
+                            <div className="bg-emerald-500 h-full" style={{ width: "55%" }} title="OpenAI (55%)" />
+                            <div className="bg-purple-500 h-full" style={{ width: "30%" }} title="Anthropic (30%)" />
+                            <div className="bg-blue-500 h-full" style={{ width: "15%" }} title="Google Vertex (15%)" />
+                          </div>
+
+                          <div className="space-y-2 text-xs">
+                            <div className="p-2.5 bg-neutral-50 dark:bg-neutral-800/60 rounded-lg flex items-center justify-between">
+                              <span className="font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> OpenAI
+                              </span>
+                              <div className="text-right font-mono">
+                                <div className="font-bold text-emerald-600">${(selectedOrg.currentSpend * 0.55).toFixed(2)}</div>
+                                <div className="text-[10px] text-neutral-400">15.6M Tokens • 781,000 Req</div>
+                              </div>
+                            </div>
+
+                            <div className="p-2.5 bg-neutral-50 dark:bg-neutral-800/60 rounded-lg flex items-center justify-between">
+                              <span className="font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full bg-purple-500" /> Anthropic
+                              </span>
+                              <div className="text-right font-mono">
+                                <div className="font-bold text-purple-600">${(selectedOrg.currentSpend * 0.30).toFixed(2)}</div>
+                                <div className="text-[10px] text-neutral-400">8.5M Tokens • 426,000 Req</div>
+                              </div>
+                            </div>
+
+                            <div className="p-2.5 bg-neutral-50 dark:bg-neutral-800/60 rounded-lg flex items-center justify-between">
+                              <span className="font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Google Vertex
+                              </span>
+                              <div className="text-right font-mono">
+                                <div className="font-bold text-blue-600">${(selectedOrg.currentSpend * 0.15).toFixed(2)}</div>
+                                <div className="text-[10px] text-neutral-400">4.3M Tokens • 213,000 Req</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SECTION 7 & SECTION 8: Token Analytics & Request Analytics Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                      {/* SECTION 7: Token Analytics */}
+                      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                          <div className="flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-amber-500" />
+                            <h3 className="font-bold text-sm text-neutral-900 dark:text-white">Token Analytics</h3>
+                          </div>
+                          <span className="text-[11px] font-mono text-amber-600 font-bold">28.45M Total Tokens</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                          <div className="p-3 bg-neutral-50 dark:bg-neutral-800/60 rounded-xl space-y-1">
+                            <span className="text-[10px] text-neutral-400 block font-medium">Prompt Tokens</span>
+                            <span className="text-base font-bold text-neutral-900 dark:text-white font-mono">18.2M</span>
+                          </div>
+                          <div className="p-3 bg-neutral-50 dark:bg-neutral-800/60 rounded-xl space-y-1">
+                            <span className="text-[10px] text-neutral-400 block font-medium">Completion Tokens</span>
+                            <span className="text-base font-bold text-neutral-900 dark:text-white font-mono">8.1M</span>
+                          </div>
+                          <div className="p-3 bg-neutral-50 dark:bg-neutral-800/60 rounded-xl space-y-1">
+                            <span className="text-[10px] text-neutral-400 block font-medium">Cached Tokens</span>
+                            <span className="text-base font-bold text-emerald-600 font-mono">2.15M</span>
+                          </div>
+                          <div className="p-3 bg-neutral-50 dark:bg-neutral-800/60 rounded-xl space-y-1">
+                            <span className="text-[10px] text-neutral-400 block font-medium">Total Tokens</span>
+                            <span className="text-base font-bold text-amber-600 font-mono">28.45M</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* SECTION 8: Request Analytics */}
+                      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                          <div className="flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-blue-600" />
+                            <h3 className="font-bold text-sm text-neutral-900 dark:text-white">Request Analytics</h3>
+                          </div>
+                          <span className="text-[11px] font-mono text-emerald-600 font-bold">99.98% Uptime</span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3 text-center">
+                          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/50 rounded-xl space-y-1">
+                            <span className="text-[10px] text-emerald-700 dark:text-emerald-300 block font-semibold">Successful</span>
+                            <span className="text-base font-bold text-emerald-700 dark:text-emerald-300 font-mono">1,419,720</span>
+                          </div>
+                          <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200/50 rounded-xl space-y-1">
+                            <span className="text-[10px] text-rose-700 dark:text-rose-300 block font-semibold">Failed</span>
+                            <span className="text-base font-bold text-rose-700 dark:text-rose-300 font-mono">280</span>
+                          </div>
+                          <div className="p-3 bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700 rounded-xl space-y-1">
+                            <span className="text-[10px] text-neutral-500 block font-semibold">Total Requests</span>
+                            <span className="text-base font-bold text-neutral-900 dark:text-white font-mono">1,420,000</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* 2. MODELS TAB */}
+            {detailTab === "models" && (
+              <div className="space-y-4 text-xs animate-fadeIn">
+                {/* Models Action Toolbar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 shadow-2xs">
+                  <div className="flex items-center gap-2 flex-1">
+                    <SearchBar
+                      value={modelsTabSearchQuery}
+                      onChange={(val) => setModelsTabSearchQuery(val)}
+                      placeholder="Search Models by Model Name or Model Alias..."
+                    />
+                    <select
+                      value={modelsTabFilterProvider}
+                      onChange={(e) => setModelsTabFilterProvider(e.target.value)}
+                      className="h-9 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
+                    >
+                      <option value="All">All Providers</option>
+                      {AI_PROVIDERS.map((p) => (
+                        <option key={p.id} value={p.name}>{p.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={modelsTabFilterStatus}
+                      onChange={(e) => setModelsTabFilterStatus(e.target.value)}
+                      className="h-9 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
+                    >
+                      <option value="All">All Statuses</option>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <IconButton
+                      icon={Download}
+                      label="Export"
+                      onClick={() => toast.success("Exported assigned models list")}
+                    />
+                    <IconButton
+                      icon={RefreshCw}
+                      label="Refresh"
+                      onClick={() => toast.success("Refreshed assigned models")}
+                    />
+                    <PrimaryButton icon={Plus} onClick={handleOpenAddModelModal}>
+                      Add Model
+                    </PrimaryButton>
+                  </div>
+                </div>
+
+                {/* Models Table */}
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xs overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-neutral-50/80 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 font-semibold">
+                          <th className="py-3 px-4">Provider</th>
+                          <th className="py-3 px-4">Model Name</th>
+                          <th className="py-3 px-4">Model Alias</th>
+                          <th className="py-3 px-4">Status</th>
+                          <th className="py-3 px-4">Added On</th>
+                          <th className="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/80 text-neutral-800 dark:text-neutral-200">
+                        {(() => {
+                          const modelsList = mockOrgModels[selectedOrg.id] || [];
+                          const filtered = modelsList.filter((m) => {
+                            const q = modelsTabSearchQuery.toLowerCase().trim();
+                            const matchesSearch =
+                              !q ||
+                              m.modelName.toLowerCase().includes(q) ||
+                              m.modelAlias.toLowerCase().includes(q);
+                            const matchesProvider =
+                              modelsTabFilterProvider === "All" || m.provider === modelsTabFilterProvider;
+                            const matchesStatus =
+                              modelsTabFilterStatus === "All" || m.status === modelsTabFilterStatus;
+                            return matchesSearch && matchesProvider && matchesStatus;
+                          });
+
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={6} className="py-12 text-center text-neutral-400 space-y-3">
+                                  <Cpu className="w-10 h-10 mx-auto text-neutral-300 dark:text-neutral-700 stroke-1" />
+                                  <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">No Models Found</div>
+                                  <p className="text-xs max-w-sm mx-auto">No assigned models match your search or filter selection.</p>
+                                  <PrimaryButton icon={Plus} onClick={handleOpenAddModelModal}>
+                                    Add Model
+                                  </PrimaryButton>
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return filtered.map((mod) => (
+                            <tr key={mod.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40 transition-colors">
+                              <td className="py-3.5 px-4 font-bold text-neutral-900 dark:text-white whitespace-nowrap">
+                                {mod.provider}
+                              </td>
+                              <td className="py-3.5 px-4 font-semibold text-primary-600 dark:text-primary-400 whitespace-nowrap">
+                                {mod.modelName}
+                              </td>
+                              <td className="py-3.5 px-4 font-mono text-[11px] text-neutral-500 whitespace-nowrap">
+                                {mod.modelAlias}
+                              </td>
+                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50">
+                                  ● {mod.status}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">
+                                {mod.addedOn}
+                              </td>
+                              <td className="py-3.5 px-4 text-right whitespace-nowrap space-x-3 font-semibold">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditModelModal(mod)}
+                                  className="text-primary-600 dark:text-primary-400 hover:underline cursor-pointer"
+                                >
+                                  Configure
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveModel(mod.id, mod.modelName)}
+                                  className="text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* MEMBERS TAB */}
+            {/* 3. TEAMS TAB */}
+            {detailTab === "teams" && (
+              <div className="space-y-4 text-xs animate-fadeIn">
+                {/* Teams Action Toolbar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 shadow-2xs">
+                  <div className="flex items-center gap-2 flex-1">
+                    <SearchBar
+                      value={teamsTabSearchQuery}
+                      onChange={(val) => setTeamsTabSearchQuery(val)}
+                      placeholder="Search Teams by Team Name..."
+                    />
+                    <select
+                      value={teamsTabFilterStatus}
+                      onChange={(e) => setTeamsTabFilterStatus(e.target.value)}
+                      className="h-9 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
+                    >
+                      <option value="All">All Statuses</option>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <IconButton
+                      icon={Download}
+                      label="Export"
+                      onClick={() => toast.success("Exported Teams list")}
+                    />
+                    <IconButton
+                      icon={RefreshCw}
+                      label="Refresh"
+                      onClick={() => toast.success("Refreshed assigned teams")}
+                    />
+                    <PrimaryButton icon={Plus} onClick={() => setShowAddTeamModal(true)}>
+                      Add Team
+                    </PrimaryButton>
+                  </div>
+                </div>
+
+                {/* Teams Table */}
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xs overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-neutral-50/80 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 font-semibold">
+                          <th className="py-3 px-4">Team Name</th>
+                          <th className="py-3 px-4">Members</th>
+                          <th className="py-3 px-4">Team Spend (USD)</th>
+                          <th className="py-3 px-4">Created Date</th>
+                          <th className="py-3 px-4">Status</th>
+                          <th className="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/80 text-neutral-800 dark:text-neutral-200">
+                        {(() => {
+                          const teamsList = mockOrgTeams[selectedOrg.id] || [];
+                          const filtered = teamsList.filter((t) => {
+                            const q = teamsTabSearchQuery.toLowerCase().trim();
+                            const matchesSearch = !q || t.name.toLowerCase().includes(q);
+                            const matchesStatus = teamsTabFilterStatus === "All" || t.status === teamsTabFilterStatus;
+                            return matchesSearch && matchesStatus;
+                          });
+
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={6} className="py-12 text-center text-neutral-400 space-y-3">
+                                  <Users className="w-10 h-10 mx-auto text-neutral-300 dark:text-neutral-700 stroke-1" />
+                                  <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">No Teams Found</div>
+                                  <p className="text-xs max-w-sm mx-auto">No assigned teams match your search or filter selection.</p>
+                                  <PrimaryButton icon={Plus} onClick={() => setShowAddTeamModal(true)}>
+                                    Add Team
+                                  </PrimaryButton>
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return filtered.map((team) => (
+                            <tr key={team.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40 transition-colors">
+                              <td className="py-3.5 px-4 font-bold text-primary-600 dark:text-primary-400 whitespace-nowrap cursor-pointer hover:underline" onClick={() => toast.info(`Viewing team details for ${team.name}`)}>
+                                {team.name}
+                              </td>
+                              <td className="py-3.5 px-4 font-medium text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
+                                {team.membersCount} Members
+                              </td>
+                              <td className="py-3.5 px-4 font-mono font-semibold text-neutral-900 dark:text-white whitespace-nowrap">
+                                ${team.spend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">
+                                {team.createdOn}
+                              </td>
+                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                  team.status === "Active"
+                                    ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/50"
+                                    : "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-neutral-200/50"
+                                }`}>
+                                  ● {team.status}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() => toast.info(`Viewing team details for ${team.name}`)}
+                                  className="text-primary-600 font-semibold hover:underline"
+                                >
+                                  View Team
+                                </button>
+                              </td>
+                            </tr>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 4. MEMBERS TAB */}
             {detailTab === "members" && (
               <div className="space-y-4 text-xs animate-fadeIn">
                 {/* Members Action Toolbar */}
@@ -2552,7 +3384,8 @@ export default function OrganizationManagement() {
                     >
                       <option value="All">All Roles</option>
                       <option value="Organization Admin">Organization Admin</option>
-                      <option value="Internal User">Internal User</option>
+                      <option value="User">User</option>
+                      <option value="Viewer">Viewer</option>
                     </select>
                   </div>
 
@@ -2615,6 +3448,7 @@ export default function OrganizationManagement() {
                           <th className="py-3 px-4">Full Name</th>
                           <th className="py-3 px-4">Email Address</th>
                           <th className="py-3 px-4">Organization Role</th>
+                          <th className="py-3 px-4">Teams</th>
                           <th className="py-3 px-4">Spend (USD)</th>
                           <th className="py-3 px-4">Created Date</th>
                           <th className="py-3 px-4">Joined Date</th>
@@ -2625,7 +3459,7 @@ export default function OrganizationManagement() {
                       <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/80 text-neutral-800 dark:text-neutral-200">
                         {filteredMembers.length === 0 ? (
                           <tr>
-                            <td colSpan={10} className="py-12 text-center text-neutral-400 space-y-3">
+                            <td colSpan={11} className="py-12 text-center text-neutral-400 space-y-3">
                               <Users className="w-10 h-10 mx-auto text-neutral-300 dark:text-neutral-700 stroke-1" />
                               <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">No Members Added</div>
                               <p className="text-xs max-w-sm mx-auto">No members match your search or filter selection in this organization.</p>
@@ -2677,6 +3511,56 @@ export default function OrganizationManagement() {
                                   }`}>
                                     {mem.role}
                                   </span>
+                                </td>
+
+                                {/* Teams Column with HB Popover */}
+                                <td className="py-3.5 px-4 text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
+                                  {(() => {
+                                    const userTeams = mem.teams || ["Engineering"];
+                                    if (userTeams.length <= 1) {
+                                      return (
+                                        <span className="px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-[11px] font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">
+                                          {userTeams[0] || "General"}
+                                        </span>
+                                      );
+                                    }
+                                    const mainTeam = userTeams[0];
+                                    const extraCount = userTeams.length - 1;
+                                    const isPopoverOpen = openTeamsPopoverId === mem.id;
+
+                                    return (
+                                      <div className="relative inline-block">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-[11px] font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">
+                                            {mainTeam}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setOpenTeamsPopoverId(isPopoverOpen ? null : mem.id);
+                                            }}
+                                            className="px-1.5 py-0.5 rounded bg-primary-50 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 text-[11px] font-bold hover:bg-primary-100 transition-colors cursor-pointer border border-primary-200/50"
+                                          >
+                                            +{extraCount} More
+                                          </button>
+                                        </div>
+
+                                        {/* HB Popover */}
+                                        {isPopoverOpen && (
+                                          <div className="absolute left-0 top-7 z-40 w-48 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl p-3 text-xs space-y-1.5 animate-fadeIn">
+                                            <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Assigned Teams</div>
+                                            {userTeams.map((t) => (
+                                              <div key={t} className="flex items-center gap-1.5 py-0.5 text-neutral-800 dark:text-neutral-200 font-medium">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-primary-500" />
+                                                <span>{t}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                 </td>
 
                                 <td className="py-3.5 px-4 font-mono font-semibold text-neutral-900 dark:text-white whitespace-nowrap">
@@ -2748,226 +3632,6 @@ export default function OrganizationManagement() {
                             );
                           })
                         )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* MODELS TAB */}
-            {detailTab === "models" && (
-              <div className="space-y-4 text-xs animate-fadeIn">
-                {/* Models Action Toolbar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 shadow-2xs">
-                  <div className="flex items-center gap-2 flex-1">
-                    <SearchBar
-                      value={modelsTabSearchQuery}
-                      onChange={(val) => setModelsTabSearchQuery(val)}
-                      placeholder="Search Models by Model Name or Model Alias..."
-                    />
-                    <select
-                      value={modelsTabFilterProvider}
-                      onChange={(e) => setModelsTabFilterProvider(e.target.value)}
-                      className="h-9 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                    >
-                      <option value="All">All Providers</option>
-                      {AI_PROVIDERS.map((p) => (
-                        <option key={p.id} value={p.name}>{p.name}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={modelsTabFilterStatus}
-                      onChange={(e) => setModelsTabFilterStatus(e.target.value)}
-                      className="h-9 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                    >
-                      <option value="All">All Statuses</option>
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <IconButton
-                      icon={Download}
-                      label="Export"
-                      onClick={() => toast.success("Exported assigned models list")}
-                    />
-                    <IconButton
-                      icon={RefreshCw}
-                      label="Refresh"
-                      onClick={() => toast.success("Refreshed assigned models")}
-                    />
-                  </div>
-                </div>
-
-                {/* Models Table */}
-                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xs overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-neutral-50/80 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 font-semibold">
-                          <th className="py-3 px-4">Provider</th>
-                          <th className="py-3 px-4">Model Name</th>
-                          <th className="py-3 px-4">Model Alias</th>
-                          <th className="py-3 px-4">Status</th>
-                          <th className="py-3 px-4">Added On</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/80 text-neutral-800 dark:text-neutral-200">
-                        {(() => {
-                          const modelsList = mockOrgModels[selectedOrg.id] || [];
-                          const filtered = modelsList.filter((m) => {
-                            const q = modelsTabSearchQuery.toLowerCase().trim();
-                            const matchesSearch =
-                              !q ||
-                              m.modelName.toLowerCase().includes(q) ||
-                              m.modelAlias.toLowerCase().includes(q);
-                            const matchesProvider =
-                              modelsTabFilterProvider === "All" || m.provider === modelsTabFilterProvider;
-                            const matchesStatus =
-                              modelsTabFilterStatus === "All" || m.status === modelsTabFilterStatus;
-                            return matchesSearch && matchesProvider && matchesStatus;
-                          });
-
-                          if (filtered.length === 0) {
-                            return (
-                              <tr>
-                                <td colSpan={5} className="py-12 text-center text-neutral-400 space-y-3">
-                                  <Cpu className="w-10 h-10 mx-auto text-neutral-300 dark:text-neutral-700 stroke-1" />
-                                  <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">No Models Found</div>
-                                  <p className="text-xs max-w-sm mx-auto">No assigned models match your search or filter selection.</p>
-                                </td>
-                              </tr>
-                            );
-                          }
-
-                          return filtered.map((mod) => (
-                            <tr key={mod.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40 transition-colors">
-                              <td className="py-3.5 px-4 font-bold text-neutral-900 dark:text-white whitespace-nowrap">
-                                {mod.provider}
-                              </td>
-                              <td className="py-3.5 px-4 font-semibold text-primary-600 dark:text-primary-400 whitespace-nowrap">
-                                {mod.modelName}
-                              </td>
-                              <td className="py-3.5 px-4 font-mono text-[11px] text-neutral-500 whitespace-nowrap">
-                                {mod.modelAlias}
-                              </td>
-                              <td className="py-3.5 px-4 whitespace-nowrap">
-                                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50">
-                                  ● {mod.status}
-                                </span>
-                              </td>
-                              <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">
-                                {mod.addedOn}
-                              </td>
-                            </tr>
-                          ));
-                        })()}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TEAMS TAB */}
-            {detailTab === "teams" && (
-              <div className="space-y-4 text-xs animate-fadeIn">
-                {/* Teams Action Toolbar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 shadow-2xs">
-                  <div className="flex items-center gap-2 flex-1">
-                    <SearchBar
-                      value={teamsTabSearchQuery}
-                      onChange={(val) => setTeamsTabSearchQuery(val)}
-                      placeholder="Search Teams by Team Name..."
-                    />
-                    <select
-                      value={teamsTabFilterStatus}
-                      onChange={(e) => setTeamsTabFilterStatus(e.target.value)}
-                      className="h-9 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                    >
-                      <option value="All">All Statuses</option>
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <IconButton
-                      icon={Download}
-                      label="Export"
-                      onClick={() => toast.success("Exported Teams list")}
-                    />
-                    <IconButton
-                      icon={RefreshCw}
-                      label="Refresh"
-                      onClick={() => toast.success("Refreshed assigned teams")}
-                    />
-                  </div>
-                </div>
-
-                {/* Teams Table */}
-                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xs overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-neutral-50/80 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 font-semibold">
-                          <th className="py-3 px-4">Team Name</th>
-                          <th className="py-3 px-4">Members</th>
-                          <th className="py-3 px-4">Spend (USD)</th>
-                          <th className="py-3 px-4">Created On</th>
-                          <th className="py-3 px-4">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/80 text-neutral-800 dark:text-neutral-200">
-                        {(() => {
-                          const teamsList = mockOrgTeams[selectedOrg.id] || [];
-                          const filtered = teamsList.filter((t) => {
-                            const q = teamsTabSearchQuery.toLowerCase().trim();
-                            const matchesSearch = !q || t.name.toLowerCase().includes(q);
-                            const matchesStatus = teamsTabFilterStatus === "All" || t.status === teamsTabFilterStatus;
-                            return matchesSearch && matchesStatus;
-                          });
-
-                          if (filtered.length === 0) {
-                            return (
-                              <tr>
-                                <td colSpan={5} className="py-12 text-center text-neutral-400 space-y-3">
-                                  <Users className="w-10 h-10 mx-auto text-neutral-300 dark:text-neutral-700 stroke-1" />
-                                  <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">No Teams Found</div>
-                                  <p className="text-xs max-w-sm mx-auto">No assigned teams match your search or filter selection.</p>
-                                </td>
-                              </tr>
-                            );
-                          }
-
-                          return filtered.map((team) => (
-                            <tr key={team.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40 transition-colors">
-                              <td className="py-3.5 px-4 font-bold text-neutral-900 dark:text-white whitespace-nowrap">
-                                {team.name}
-                              </td>
-                              <td className="py-3.5 px-4 font-medium text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
-                                {team.membersCount} Members
-                              </td>
-                              <td className="py-3.5 px-4 font-mono font-semibold text-neutral-900 dark:text-white whitespace-nowrap">
-                                ${team.spend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                              <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">
-                                {team.createdOn}
-                              </td>
-                              <td className="py-3.5 px-4 whitespace-nowrap">
-                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                                  team.status === "Active"
-                                    ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/50"
-                                    : "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-neutral-200/50"
-                                }`}>
-                                  ● {team.status}
-                                </span>
-                              </td>
-                            </tr>
-                          ));
-                        })()}
                       </tbody>
                     </table>
                   </div>
@@ -3115,10 +3779,49 @@ export default function OrganizationManagement() {
               <button
                 type="button"
                 onClick={() => {
-                  toast.success("Exported Organizations list to CSV");
+                  const headers = [
+                    "Organization ID",
+                    "Organization Name",
+                    "Created Date",
+                    "Expiration",
+                    "Total Spend (USD)",
+                    "Models",
+                    "TPM Limit",
+                    "RPM Limit",
+                    "Country",
+                    "Status",
+                    "Members",
+                  ];
+                  const rows = filteredOrgs.map((org) => {
+                    const exp = formatExpirationDisplay(org.expirationType, org.expirationDate);
+                    return [
+                      `"${org.orgId}"`,
+                      `"${org.name.replace(/"/g, '""')}"`,
+                      `"${org.createdDate}"`,
+                      `"${exp.text}"`,
+                      `"${org.currentSpend}"`,
+                      `"${getModelCountLabel(org)}"`,
+                      `"${org.tpmLimit}"`,
+                      `"${org.rpmLimit}"`,
+                      `"${org.country || ""}"`,
+                      `"${org.status}"`,
+                      `"${org.membersCount}"`,
+                    ];
+                  });
+
+                  const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+                  const encodedUri = encodeURI(csvContent);
+                  const link = document.createElement("a");
+                  link.setAttribute("href", encodedUri);
+                  link.setAttribute("download", `organizations_export_${new Date().toISOString().slice(0, 10)}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+
+                  toast.success("Exported Organizations list with Expiration column to CSV");
                   setShowExportModal(false);
                 }}
-                className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-primary-500 flex flex-col items-center gap-2"
+                className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-primary-500 flex flex-col items-center gap-2 cursor-pointer"
               >
                 <FileText className="w-8 h-8 text-blue-600" />
                 <span className="font-bold">CSV Format</span>
@@ -3127,10 +3830,49 @@ export default function OrganizationManagement() {
               <button
                 type="button"
                 onClick={() => {
-                  toast.success("Exported Organizations list to Excel");
+                  const headers = [
+                    "Organization ID",
+                    "Organization Name",
+                    "Created Date",
+                    "Expiration",
+                    "Total Spend (USD)",
+                    "Models",
+                    "TPM Limit",
+                    "RPM Limit",
+                    "Country",
+                    "Status",
+                    "Members",
+                  ];
+                  const rows = filteredOrgs.map((org) => {
+                    const exp = formatExpirationDisplay(org.expirationType, org.expirationDate);
+                    return [
+                      `"${org.orgId}"`,
+                      `"${org.name.replace(/"/g, '""')}"`,
+                      `"${org.createdDate}"`,
+                      `"${exp.text}"`,
+                      `"${org.currentSpend}"`,
+                      `"${getModelCountLabel(org)}"`,
+                      `"${org.tpmLimit}"`,
+                      `"${org.rpmLimit}"`,
+                      `"${org.country || ""}"`,
+                      `"${org.status}"`,
+                      `"${org.membersCount}"`,
+                    ];
+                  });
+
+                  const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+                  const encodedUri = encodeURI(csvContent);
+                  const link = document.createElement("a");
+                  link.setAttribute("href", encodedUri);
+                  link.setAttribute("download", `organizations_export_${new Date().toISOString().slice(0, 10)}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+
+                  toast.success("Exported Organizations list with Expiration column to Excel (.xlsx)");
                   setShowExportModal(false);
                 }}
-                className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-primary-500 flex flex-col items-center gap-2"
+                className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-primary-500 flex flex-col items-center gap-2 cursor-pointer"
               >
                 <FileSpreadsheet className="w-8 h-8 text-emerald-600" />
                 <span className="font-bold">Excel (.xlsx)</span>
@@ -3268,37 +4010,7 @@ export default function OrganizationManagement() {
         </div>
       )}
 
-      {/* LOGIN AS ORGANIZATION CONFIRMATION MODAL */}
-      {showLoginAsModal && selectedOrg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 text-xs">
-            <div className="flex items-center gap-3 text-blue-600">
-              <LogIn className="w-6 h-6" />
-              <h3 className="font-bold text-base text-neutral-900 dark:text-white">
-                Login as Organization?
-              </h3>
-            </div>
-            <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed">
-              You are about to temporarily access <strong>"{selectedOrg.name}"</strong>&apos;s workspace using Super Admin privileges. This action is intended for troubleshooting and support purposes.
-            </p>
-            <div className="pt-2 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setShowLoginAsModal(false)}
-                className="px-4 py-2 border border-neutral-300 rounded-lg font-semibold"
-              >
-                Cancel
-              </button>
-              <PrimaryButton onClick={() => {
-                toast.success(`Access granted! Temporary session started for '${selectedOrg.name}'.`);
-                setShowLoginAsModal(false);
-              }}>
-                Continue
-              </PrimaryButton>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* STATUS TOGGLE CONFIRMATION MODAL */}
       {showStatusModal && selectedOrg && (
@@ -3404,8 +4116,8 @@ export default function OrganizationManagement() {
                   className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg font-semibold text-xs"
                 >
                   <option value="Organization Admin">Organization Admin</option>
-                  <option value="Internal User">Internal User</option>
-                  <option value="Internal User Viewer">Internal User Viewer</option>
+                  <option value="User">User</option>
+                  <option value="Viewer">Viewer</option>
                 </select>
               </div>
             </div>
@@ -3457,8 +4169,8 @@ export default function OrganizationManagement() {
                   className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg font-semibold text-xs"
                 >
                   <option value="Organization Admin">Organization Admin</option>
-                  <option value="Internal User">Internal User</option>
-                  <option value="Internal User Viewer">Internal User Viewer</option>
+                  <option value="User">User</option>
+                  <option value="Viewer">Viewer</option>
                 </select>
               </div>
             </div>
@@ -3509,6 +4221,138 @@ export default function OrganizationManagement() {
               >
                 Remove Member
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD / EDIT MODEL MODAL POPUP */}
+      {showModelModal && selectedOrg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5 text-xs">
+            <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-3">
+              <h3 className="font-bold text-base text-neutral-900 dark:text-white flex items-center gap-2">
+                <Cpu className="w-5 h-5 text-primary-600" />
+                <span>{editingModel ? "Configure Model Mapping" : "Add Model to Organization"}</span>
+              </h3>
+              <button type="button" onClick={() => setShowModelModal(false)}>
+                <X className="w-4 h-4 text-neutral-400 hover:text-neutral-600" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block font-semibold text-neutral-800 dark:text-neutral-200 mb-1">
+                  AI Provider <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={modelFormProvider}
+                  onChange={(e) => setModelFormProvider(e.target.value)}
+                  className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg font-medium text-xs"
+                >
+                  {AI_PROVIDERS.map((p) => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-neutral-800 dark:text-neutral-200 mb-1">
+                  Model Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={modelFormName}
+                  onChange={(e) => setModelFormName(e.target.value)}
+                  placeholder="e.g. GPT-4o, Claude 3.5 Sonnet, Llama-3-70b"
+                  className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg font-medium text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-neutral-800 dark:text-neutral-200 mb-1">
+                  Model Alias
+                </label>
+                <input
+                  type="text"
+                  value={modelFormAlias}
+                  onChange={(e) => setModelFormAlias(e.target.value)}
+                  placeholder="e.g. <gpt-4o-prod>"
+                  className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg font-mono text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-neutral-800 dark:text-neutral-200 mb-1">
+                  Status
+                </label>
+                <select
+                  value={modelFormStatus}
+                  onChange={(e) => setModelFormStatus(e.target.value as any)}
+                  className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg font-semibold text-xs"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-neutral-100 dark:border-neutral-800 flex justify-end gap-3 font-semibold">
+              <button
+                type="button"
+                onClick={() => setShowModelModal(false)}
+                className="px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              >
+                Cancel
+              </button>
+              <PrimaryButton onClick={handleSaveModel} disabled={!modelFormName.trim()}>
+                {editingModel ? "Save Changes" : "Add Model"}
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD TEAM MODAL POPUP */}
+      {showAddTeamModal && selectedOrg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-5 text-xs">
+            <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-3">
+              <h3 className="font-bold text-base text-neutral-900 dark:text-white flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-primary-600" />
+                <span>Add Team to Organization</span>
+              </h3>
+              <button type="button" onClick={() => setShowAddTeamModal(false)}>
+                <X className="w-4 h-4 text-neutral-400 hover:text-neutral-600" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block font-semibold text-neutral-800 dark:text-neutral-200 mb-1">
+                  Team Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  placeholder="e.g. Engineering, Security, AI Research"
+                  className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg font-medium text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-neutral-100 dark:border-neutral-800 flex justify-end gap-3 font-semibold">
+              <button
+                type="button"
+                onClick={() => setShowAddTeamModal(false)}
+                className="px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              >
+                Cancel
+              </button>
+              <PrimaryButton onClick={handleSaveAddTeam} disabled={!newTeamName.trim()}>
+                Add Team
+              </PrimaryButton>
             </div>
           </div>
         </div>

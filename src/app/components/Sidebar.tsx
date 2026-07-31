@@ -130,6 +130,7 @@ export function Sidebar({
     "organizations": (t.nav as any).organizations || "Organizations",
     "ai-gateway": (t.nav as any).aiGateway || "AI Gateway",
     "virtual-key": (t.nav as any).virtualKey || "Virtual Key",
+    "request-log": "Request Log",
     "site-map": t.nav.siteMap,
     "hb-templates": t.nav.hbTemplates,
     "ui-kit": t.nav.uiKit,

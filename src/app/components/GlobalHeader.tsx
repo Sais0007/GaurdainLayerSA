@@ -1556,80 +1556,16 @@ export function GlobalHeader({
             )}
           </div>
 
-          {/* User Avatar Dropdown */}
-          <div className="relative" ref={userRef}>
-            <button
-              onClick={() =>
-                setShowUserDropdown(!showUserDropdown)
-              }
-              className="h-8 pl-1 pr-2 flex items-center gap-1.5 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-900 rounded-lg transition-colors"
-            >
-              <div className="w-7 h-7 bg-primary-600 dark:bg-primary-500 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                JD
-              </div>
-              <ChevronDown className="w-3 h-3 hidden lg:inline text-neutral-400" />
-            </button>
-            {showUserDropdown && (
-              <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-xl overflow-hidden">
-                {/* User Info Section */}
-                <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 bg-primary-600 dark:bg-primary-500 rounded-full flex items-center justify-center text-white font-medium flex-shrink-0">
-                      JD
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-neutral-900 dark:text-white mb-0.5">
-                        {profileData.name}
-                      </div>
-                      <div className="text-xs text-neutral-600 dark:text-neutral-400 mb-1 truncate">
-                        {profileData.email}
-                      </div>
-                      <div className="text-xs font-semibold text-primary-600 dark:text-primary-400">
-                        {profileData.role}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Menu Items */}
-                <div className="p-1">
-                  <button
-                    onClick={() => {
-                      setShowUserDropdown(false);
-                      onNavigate?.("profile");
-                    }}
-                    className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded transition-colors flex items-center gap-2"
-                  >
-                    <User className="w-4 h-4" />
-                    <span>My Profile</span>
-                  </button>
-                  <button
-                    onClick={() => setShowChangePasswordModal(true)}
-                    className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded transition-colors flex items-center gap-2"
-                  >
-                    <Key className="w-4 h-4" />
-                    <span>Change Password</span>
-                  </button>
-                  <button className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded transition-colors flex items-center gap-2">
-                    <Settings className="w-4 h-4" />
-                    <span>Settings</span>
-                  </button>
-                  <button className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded transition-colors flex items-center gap-2">
-                    <HelpCircle className="w-4 h-4" />
-                    <span>Help & Support</span>
-                  </button>
-                </div>
-
-                {/* Logout */}
-                <div className="p-1 border-t border-neutral-200 dark:border-neutral-800">
-                  <button className="w-full px-3 py-2 text-left text-sm text-error-600 dark:text-error-400 hover:bg-error-50 dark:hover:bg-error-950 rounded transition-colors flex items-center gap-2">
-                    <LogOut className="w-4 h-4" />
-                    <span>Logout</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* User Avatar Button — Direct Navigation to Profile Screen */}
+          <button
+            onClick={() => onNavigate?.("profile")}
+            className="w-8 h-8 flex items-center justify-center text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-900 rounded-lg transition-colors cursor-pointer"
+            title="My Profile"
+          >
+            <div className="w-7 h-7 bg-primary-600 dark:bg-primary-500 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+              JD
+            </div>
+          </button>
         </div>
       </div>
 

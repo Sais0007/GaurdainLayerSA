@@ -35,6 +35,8 @@ export function useNavigationHelper() {
     "logs-group": t.nav.logs,
     "hb-templates": t.nav.hbTemplates,
     "virtual-key": (t.nav as any).virtualKey || "Virtual Key",
+    "model-management": "Model Management",
+    "request-log": "Request Log",
     "teams": (t.nav as any).teams || "Teams",
     "internal-users": (t.nav as any).internalUsers || "Internal Users",
     "organizations": (t.nav as any).organizations || "Organizations",
@@ -49,6 +51,8 @@ export function useNavigationHelper() {
     const singularMap: Record<string, string> = {
       "user-management": "User",
       "virtual-key": "Virtual Key",
+      "model-management": "Model",
+      "request-log": "Request Log",
       "teams": "Team",
       "internal-users": "User",
       "organizations": "Organization",

@@ -56,6 +56,32 @@ export const getNavigationData = (
       ],
     },
     {
+      id: "ai-gateway",
+      label: "AI Gateway",
+      icon: Cpu,
+      subItems: [
+        {
+          id: "virtual-key",
+          label: "Virtual Key",
+          onClick: () => onNavigate("virtual-key"),
+          active: currentPage === "virtual-key" || currentPage === "virtual-keys",
+        },
+        {
+          id: "model-management",
+          label: "Model Management",
+          onClick: () => onNavigate("model-management"),
+          active: currentPage === "model-management" || currentPage === "models",
+        },
+      ],
+    },
+    {
+      id: "request-log",
+      label: "Request Log",
+      icon: Clock,
+      onClick: () => onNavigate("request-log"),
+      active: currentPage === "request-log" || currentPage === "request-logs" || currentPage === "logs",
+    },
+    {
       id: "site-map",
       label: "Site Map",
       icon: Map,

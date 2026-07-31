@@ -19,6 +19,7 @@ import { SiteMap } from "./components/SiteMap";
 import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
 import VirtualKeyManagement from "./components/VirtualKeyManagement";
+import ModelManagement from "./components/ModelManagement";
 import OrganizationManagement from "./components/OrganizationManagement";
 import { ErrorBoundary } from "./components/hb/common/ErrorBoundary";
 import TeamsManagement from "./components/TeamsManagement";
@@ -193,6 +194,10 @@ export default function App() {
               <ErrorBoundary moduleName="Virtual Keys">
                 <VirtualKeyManagement />
               </ErrorBoundary>
+            ) : currentPage === "model-management" || currentPage === "models" ? (
+              <ErrorBoundary moduleName="Model Management">
+                <ModelManagement />
+              </ErrorBoundary>
             ) : currentPage === "event-management" ? (
               <EventManagement />
             ) : currentPage === "static-pages" ? (
@@ -211,7 +216,7 @@ export default function App() {
               <EmailTemplates />
             ) : currentPage === "system-notifications" ? (
               <SystemNotifications />
-            ) : currentPage === "logs" ? (
+            ) : currentPage === "logs" || currentPage === "request-log" || currentPage === "request-logs" ? (
               <LogsPage />
             ) : currentPage === "site-map" ? (
               <SiteMap onNavigate={handleNavigate} currentPage={currentPage} />
