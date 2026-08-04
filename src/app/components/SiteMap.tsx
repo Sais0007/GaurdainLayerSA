@@ -37,12 +37,10 @@ export function SiteMap({ onNavigate, currentPage }: SiteMapProps) {
     "email-templates": t.nav.emailTemplates,
     "system-notifications": t.nav.systemNotifications,
     "system-settings": t.nav.systemSettings,
-    "logs-group": t.nav.logs,
-    "login-logs": t.nav.loginLogs,
-    "audit-logs": t.nav.auditLogs,
-    "api-logs": t.nav.apiLogs,
-    "email-logs": t.nav.emailLogs,
-    "logs": t.nav.logs,
+    "request-log": "Request Log",
+    "request-logs": "Request Log",
+    "audit-logs": "Audit Logs",
+    "logs": "Request Log",
   };
 
   const getLabel = (id: string, fallback: string) => navLabelMap[id] ?? fallback;

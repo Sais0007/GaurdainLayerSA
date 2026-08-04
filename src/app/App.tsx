@@ -13,8 +13,7 @@ import MasterManagement from "./components/MasterManagement";
 import EmailTemplates from "./components/EmailTemplates";
 import SystemNotifications from "./components/SystemNotifications";
 import RoleManagement from "./components/RoleManagement";
-import LogsManagement from "./components/LogsManagement";
-import LogsPage from "./components/LogsPage";
+import { RequestLogsManagement } from "./components/RequestLogsManagement";
 import { SiteMap } from "./components/SiteMap";
 import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
@@ -216,8 +215,10 @@ export default function App() {
               <EmailTemplates />
             ) : currentPage === "system-notifications" ? (
               <SystemNotifications />
-            ) : currentPage === "logs" || currentPage === "request-log" || currentPage === "request-logs" ? (
-              <LogsPage />
+            ) : currentPage === "logs" || currentPage === "request-log" || currentPage === "request-logs" || currentPage === "audit-logs" || currentPage === "login-logs" || currentPage === "api-logs" || currentPage === "email-logs" ? (
+              <ErrorBoundary moduleName="Request Logs">
+                <RequestLogsManagement />
+              </ErrorBoundary>
             ) : currentPage === "site-map" ? (
               <SiteMap onNavigate={handleNavigate} currentPage={currentPage} />
             ) : currentPage === "profile" || currentPage === "my-profile" || currentPage === "company-profile" ? (

@@ -40,7 +40,9 @@ import {
   Globe,
   Database,
   KeyRound,
-  FileSpreadsheet
+  FileSpreadsheet,
+  EyeOff,
+  BarChart3
 } from "lucide-react";
 import { toast } from "sonner";
 import { 
@@ -342,7 +344,13 @@ const mockAuditLogs: AuditLogEntry[] = [
   { id: "log-5", date: "Jul 25, 2026 10:00:00", user: "superadmin@spinecloudiq.com", action: "Model Mapped", ip: "10.0.2.1", status: "Success", description: "Initial model endpoint provisioned and assigned to HB Enterprise" }
 ];
 
-export default function ModelManagement() {
+export interface ModelManagementProps {
+  hideHeader?: boolean;
+  orgName?: string;
+  orgId?: string;
+}
+
+export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelManagementProps) {
   const [models, setModels] = useState<ModelItem[]>(mockModelsData);
   const [viewState, setViewState] = useState<"list" | "detail" | "form">("list");
   const [activeTab, setActiveTab] = useState<"models" | "health">("models");
@@ -353,6 +361,7 @@ export default function ModelManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [showSummary, setShowSummary] = useState(true);
 
   // Filter Fields State
   const [filterProvider, setFilterProvider] = useState("All");
@@ -811,39 +820,34 @@ export default function ModelManagement() {
       {/* ========================================================================= */}
       {viewState === "list" && (
         <div className="space-y-6 animate-fadeIn">
-          {/* Header & Page Title */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <PageHeader pageId="model-management" action="list" />
-
-            {/* Right Action Bar */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Expandable Search Input */}
-              <div className="relative">
-                <div className={`flex items-center transition-all duration-300 ${isSearchExpanded ? "w-64" : "w-10 md:w-48"}`}>
-                  <input
-                    type="text"
-                    placeholder="Search models..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onFocus={() => setIsSearchExpanded(true)}
-                    onBlur={() => { if (!searchQuery) setIsSearchExpanded(false); }}
-                    className="w-full h-9 pl-9 pr-3 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500"
-                  />
-                  <Search className="w-4 h-4 text-neutral-400 absolute left-2.5 pointer-events-none" />
-                  {searchQuery && (
-                    <button type="button" onClick={() => setSearchQuery("")} className="absolute right-2 text-neutral-400 hover:text-neutral-600">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
+          {/* Action Toolbar (Matching Reference Card Container) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 shadow-2xs">
+            <div className="flex items-center gap-2 flex-1">
+              <div className="relative flex-1 min-w-[200px] max-w-md">
+                <input
+                  type="text"
+                  placeholder="Search models..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-9 pl-9 pr-8 text-xs bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500"
+                />
+                <Search className="w-4 h-4 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                {searchQuery && (
+                  <button type="button" onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
+            </div>
 
+            <div className="flex items-center gap-2">
               {/* Filter Button */}
               <div className="relative">
                 <IconButton
                   icon={Filter}
                   label="Filter"
                   onClick={() => setShowFilterDrawer(true)}
+                  title="Filter Models"
                 />
                 {(filterProvider !== "All" || filterStatus !== "All" || filterCreatedBy !== "All") && (
                   <span className="w-2 h-2 rounded-full bg-primary-600 absolute top-1 right-1" />
@@ -856,6 +860,7 @@ export default function ModelManagement() {
                   icon={Columns3}
                   label="Customize Columns"
                   onClick={() => setShowColumnPanel(!showColumnPanel)}
+                  title="Customize Table Columns"
                 />
                 {showColumnPanel && (
                   <ColumnVisibilityPanel
@@ -891,10 +896,18 @@ export default function ModelManagement() {
               </div>
 
               {/* Export Button */}
-              <IconButton icon={Download} label="Export" onClick={() => setShowExportModal(true)} />
+              <IconButton icon={Download} label="Export" onClick={() => setShowExportModal(true)} title="Export Models" />
 
               {/* Refresh Button */}
-              <IconButton icon={RefreshCw} label="Refresh" onClick={() => toast.success("Refreshed models list")} />
+              <IconButton icon={RefreshCw} label="Refresh" onClick={() => toast.success("Refreshed models list")} title="Refresh Models Data" />
+
+              {/* Hide / Show Summary Cards Toggle Button */}
+              <IconButton
+                icon={showSummary ? EyeOff : BarChart3}
+                label={showSummary ? "Hide Summary" : "Show Summary"}
+                onClick={() => setShowSummary(!showSummary)}
+                title={showSummary ? "Collapse KPI Summary Cards" : "Expand KPI Summary Cards"}
+              />
 
               {/* Action Button: Add Model or Run Checks */}
               {activeTab === "models" ? (
@@ -909,25 +922,27 @@ export default function ModelManagement() {
             </div>
           </div>
 
-          {/* KPI Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {kpiStats.map((kpi) => (
-              <div
-                key={kpi.id}
-                className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs hover:shadow-md transition-all"
-              >
-                <div className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
-                  {kpi.label}
+          {/* KPI Cards Grid (Toggleable via Hide Summary Icon Button) */}
+          {showSummary && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-300 animate-fadeIn">
+              {kpiStats.map((kpi) => (
+                <div
+                  key={kpi.id}
+                  className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs hover:shadow-md transition-all"
+                >
+                  <div className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                    {kpi.label}
+                  </div>
+                  <div className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">
+                    {kpi.value}
+                  </div>
+                  <div className="text-[11px] font-medium text-neutral-400 mt-1">
+                    {kpi.subValue}
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">
-                  {kpi.value}
-                </div>
-                <div className="text-[11px] font-medium text-neutral-400 mt-1">
-                  {kpi.subValue}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {/* Horizontal Tabs: Models vs Health Status */}
           <div className="border-b border-neutral-200 dark:border-neutral-800">
@@ -1333,10 +1348,11 @@ export default function ModelManagement() {
             </button>
           </div>
 
-          <PageHeader
-            pageId="model-management"
-            action={isEditMode ? "edit" : "add"}
-          />
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">
+              {isEditMode ? "Edit Model" : "Add Model"}
+            </h1>
+          </div>
 
           <form onSubmit={(e) => { e.preventDefault(); handleSaveModelSubmit(); }} className="space-y-6 w-full max-w-7xl mx-auto">
             
@@ -2283,3 +2299,5 @@ export default function ModelManagement() {
     </div>
   );
 }
+
+export default ModelManagement;

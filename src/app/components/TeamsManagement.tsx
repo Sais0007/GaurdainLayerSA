@@ -249,7 +249,13 @@ const mockTeamsData: TeamItem[] = [
   }
 ];
 
-export default function TeamsManagement() {
+export interface TeamsManagementProps {
+  hideHeader?: boolean;
+  orgName?: string;
+  orgId?: string;
+}
+
+export function TeamsManagement({ hideHeader = false, orgName, orgId }: TeamsManagementProps) {
   const [teams, setTeams] = useState<TeamItem[]>(mockTeamsData);
   const [viewState, setViewState] = useState<"list" | "detail">("list");
   const [selectedTeam, setSelectedTeam] = useState<TeamItem | null>(null);
@@ -342,19 +348,35 @@ export default function TeamsManagement() {
   const [keyFormBudget, setKeyFormBudget] = useState("500");
 
   // Extended Create/Edit Team Form State
+  const [editingTeam, setEditingTeam] = useState<TeamItem | null>(null);
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formOrg, setFormOrg] = useState("HB Enterprise");
   const [formAllowedModels, setFormAllowedModels] = useState<string[]>(["gpt-4o", "claude-3-5-sonnet"]);
   const [allModelsSelected, setAllModelsSelected] = useState(false);
-  const [formMaxBudget, setFormMaxBudget] = useState("5000");
-  const [formSoftBudget, setFormSoftBudget] = useState("4000");
+  const [formMaxBudget, setFormMaxBudget] = useState("500");
+  const [formSoftBudget, setFormSoftBudget] = useState("400");
+  const [formUnlimitedBudget, setFormUnlimitedBudget] = useState(false);
+  const [formNotificationEmails, setFormNotificationEmails] = useState<string[]>(["john@company.com"]);
+  const [emailInputText, setEmailInputText] = useState("");
   const [formResetCycle, setFormResetCycle] = useState<"Monthly" | "Quarterly" | "Annual" | "Infinite">("Monthly");
   const [formTpmLimit, setFormTpmLimit] = useState("500000");
   const [formRpmLimit, setFormRpmLimit] = useState("5000");
   const [formTouched, setFormTouched] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null);
+
+  const handleAddEmailTag = (emailStr: string) => {
+    const trimmed = emailStr.trim().toLowerCase();
+    if (trimmed && trimmed.includes("@") && !formNotificationEmails.includes(trimmed)) {
+      setFormNotificationEmails((prev) => [...prev, trimmed]);
+      setEmailInputText("");
+    }
+  };
+
+  const handleRemoveEmailTag = (emailToRemove: string) => {
+    setFormNotificationEmails((prev) => prev.filter((e) => e !== emailToRemove));
+  };
 
   // Permissions Table State
   const [permissionsList, setPermissionsList] = useState<ApiPermissionItem[]>(mockPermissions);
@@ -466,26 +488,51 @@ export default function TeamsManagement() {
     setSelectedIds(next);
   };
 
+  // Duplicate Team Name validation (ignoring current team when editing)
   const isDuplicateTeamName = useMemo(() => {
     if (!formName.trim()) return false;
-    return teams.some((t) => t.name.toLowerCase().trim() === formName.toLowerCase().trim());
-  }, [formName, teams]);
+    return teams.some((t) => t.name.toLowerCase().trim() === formName.toLowerCase().trim() && (!editingTeam || t.id !== editingTeam.id));
+  }, [formName, teams, editingTeam]);
 
   const isCreateTeamFormValid = useMemo(() => {
     return formName.trim().length > 0 && formName.length <= 100 && !isDuplicateTeamName && !!formOrg;
   }, [formName, isDuplicateTeamName, formOrg]);
 
   const handleOpenCreateModal = () => {
+    setEditingTeam(null);
     setFormName("");
     setFormDescription("");
-    setFormOrg("HB Enterprise");
+    setFormOrg(orgName || "HB Enterprise");
     setFormAllowedModels(["gpt-4o", "claude-3-5-sonnet"]);
     setAllModelsSelected(false);
-    setFormMaxBudget("5000");
-    setFormSoftBudget("4000");
+    setFormMaxBudget("500");
+    setFormSoftBudget("400");
+    setFormUnlimitedBudget(false);
+    setFormNotificationEmails(["john@company.com"]);
+    setEmailInputText("");
     setFormResetCycle("Monthly");
     setFormTpmLimit("500000");
     setFormRpmLimit("5000");
+    setFormTouched(false);
+    setIsSubmitting(false);
+    setShowCreateModal(true);
+  };
+
+  const handleOpenEditModal = (team: TeamItem) => {
+    setEditingTeam(team);
+    setFormName(team.name);
+    setFormDescription(team.description || "");
+    setFormOrg(team.organization || "HB Enterprise");
+    setFormAllowedModels(team.allowedModels || ["gpt-4o"]);
+    setAllModelsSelected(team.allowedModels ? team.allowedModels.includes("All Proxy Models") : false);
+    setFormMaxBudget(team.maxBudget ? team.maxBudget.toString() : "500");
+    setFormSoftBudget(team.maxBudget ? Math.round(team.maxBudget * ((team.softBudgetPercent || 80) / 100)).toString() : "400");
+    setFormUnlimitedBudget(team.maxBudget === 0);
+    setFormNotificationEmails(team.ownerEmail ? [team.ownerEmail] : ["john@company.com"]);
+    setEmailInputText("");
+    setFormResetCycle(team.budgetDuration || "Monthly");
+    setFormTpmLimit(team.tpmLimit ? team.tpmLimit.toString() : "500000");
+    setFormRpmLimit(team.rpmLimit ? team.rpmLimit.toString() : "5000");
     setFormTouched(false);
     setIsSubmitting(false);
     setShowCreateModal(true);
@@ -506,50 +553,72 @@ export default function TeamsManagement() {
     setIsSubmitting(true);
 
     setTimeout(() => {
-      const newTeamId = `tm-${Date.now()}`;
-      const newTeam: TeamItem = {
-        id: newTeamId,
-        teamId: `team-${Array.from({ length: 7 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`,
-        name: formName.trim(),
-        description: formDescription.trim(),
-        organization: formOrg,
-        orgId: "org-57c860ac",
-        owner: "John Doe",
-        ownerEmail: "john.doe@company.com",
-        membersCount: 1,
-        virtualKeysCount: 0,
-        accessGroupsCount: 1,
-        currentSpend: 0,
-        maxBudget: parseFloat(formMaxBudget) || 5000,
-        tpmLimit: parseInt(formTpmLimit) || 500000,
-        rpmLimit: parseInt(formRpmLimit) || 5000,
-        budgetDuration: formResetCycle,
-        softBudgetPercent: Math.round(((parseFloat(formSoftBudget) || 4000) / (parseFloat(formMaxBudget) || 5000)) * 100),
-        status: "Active",
-        createdDate: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
-        createdBy: "superadmin@spinecloudiq.com",
-        updatedDate: "Just now",
-        allowedModels: allModelsSelected ? ["All Proxy Models"] : (formAllowedModels.length > 0 ? formAllowedModels : ["gpt-4o"]),
-        membersList: [{ id: "m-100", name: "John Doe", email: "john.doe@company.com", userId: "usr-904128", role: "Team Admin", models: formAllowedModels, budget: parseFloat(formMaxBudget) || 5000, currentSpend: 0, status: "Active", lastActive: "Just now", addedDate: "Just now" }],
-        keysList: [],
-        policies: ["Rate Limiting"],
-        guardrails: ["PII Masking"],
-        vectorStores: [],
-        searchTools: [],
-        mcpServers: [],
-        agents: [],
-        loggingIntegration: "Default HB LogStream",
-        isPublic: false
-      };
+      if (editingTeam) {
+        const updatedTeam: TeamItem = {
+          ...editingTeam,
+          name: formName.trim(),
+          description: formDescription.trim(),
+          organization: formOrg,
+          maxBudget: parseFloat(formMaxBudget) || 5000,
+          tpmLimit: parseInt(formTpmLimit) || 500000,
+          rpmLimit: parseInt(formRpmLimit) || 5000,
+          budgetDuration: formResetCycle,
+          softBudgetPercent: Math.round(((parseFloat(formSoftBudget) || 4000) / (parseFloat(formMaxBudget) || 5000)) * 100),
+          allowedModels: allModelsSelected ? ["All Proxy Models"] : (formAllowedModels.length > 0 ? formAllowedModels : ["gpt-4o"]),
+          updatedDate: "Just now",
+        };
+        setTeams((prev) => prev.map((t) => (t.id === editingTeam.id ? updatedTeam : t)));
+        if (selectedTeam && selectedTeam.id === editingTeam.id) {
+          setSelectedTeam(updatedTeam);
+        }
+        toast.success(`Team "${formName.trim()}" updated successfully!`);
+        setEditingTeam(null);
+      } else {
+        const newTeamId = `tm-${Date.now()}`;
+        const newTeam: TeamItem = {
+          id: newTeamId,
+          teamId: `team-${Array.from({ length: 7 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`,
+          name: formName.trim(),
+          description: formDescription.trim(),
+          organization: formOrg,
+          orgId: "org-57c860ac",
+          owner: "John Doe",
+          ownerEmail: "john.doe@company.com",
+          membersCount: 1,
+          virtualKeysCount: 0,
+          accessGroupsCount: 1,
+          currentSpend: 0,
+          maxBudget: parseFloat(formMaxBudget) || 5000,
+          tpmLimit: parseInt(formTpmLimit) || 500000,
+          rpmLimit: parseInt(formRpmLimit) || 5000,
+          budgetDuration: formResetCycle,
+          softBudgetPercent: Math.round(((parseFloat(formSoftBudget) || 4000) / (parseFloat(formMaxBudget) || 5000)) * 100),
+          status: "Active",
+          createdDate: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+          createdBy: "superadmin@spinecloudiq.com",
+          updatedDate: "Just now",
+          allowedModels: allModelsSelected ? ["All Proxy Models"] : (formAllowedModels.length > 0 ? formAllowedModels : ["gpt-4o"]),
+          membersList: [{ id: "m-100", name: "John Doe", email: "john.doe@company.com", userId: "usr-904128", role: "Team Admin", models: formAllowedModels, budget: parseFloat(formMaxBudget) || 5000, currentSpend: 0, status: "Active", lastActive: "Just now", addedDate: "Just now" }],
+          keysList: [],
+          policies: ["Rate Limiting"],
+          guardrails: ["PII Masking"],
+          vectorStores: [],
+          searchTools: [],
+          mcpServers: [],
+          agents: [],
+          loggingIntegration: "Default HB LogStream",
+          isPublic: false
+        };
 
-      setTeams((prev) => [newTeam, ...prev]);
-      toast.success(`Team "${formName.trim()}" created successfully!`);
-      setHighlightedTeamId(newTeamId);
+        setTeams((prev) => [newTeam, ...prev]);
+        toast.success(`Team "${formName.trim()}" created successfully!`);
+        setHighlightedTeamId(newTeamId);
+        setTimeout(() => setHighlightedTeamId(null), 4000);
+      }
+
       setIsSubmitting(false);
       setShowCreateModal(false);
-
-      setTimeout(() => setHighlightedTeamId(null), 4000);
-    }, 600);
+    }, 500);
   };
 
   // Create Key Submit
@@ -663,75 +732,142 @@ export default function TeamsManagement() {
       {/* ========================================================================= */}
       {viewState === "list" ? (
         <>
-          <PageHeader
-            title="Teams"
-            breadcrumbs={[
-              { label: "Site Map", href: "#" },
-              { label: "Access Control", href: "#" },
-              { label: "Teams", current: true },
-            ]}
-          >
-            <SearchBar
-              value={searchQuery}
-              onChange={(val) => setSearchQuery(val)}
-              placeholder="Search by Team Name, Team ID or Organization..."
-            />
-
-            <IconButton
-              icon={Filter}
-              label="Filter"
-              onClick={() => setShowFilterDrawer(true)}
-              title="Filter Teams"
-            />
-
-            <div className="relative" ref={columnAnchorRef}>
-              <IconButton
-                icon={Columns3}
-                label="Columns"
-                onClick={() => setShowColumnPanel(!showColumnPanel)}
-                title="Customize Table Columns"
-              />
-              {showColumnPanel && (
-                <ColumnVisibilityPanel
-                  isOpen={showColumnPanel}
-                  onClose={() => setShowColumnPanel(false)}
-                  anchorRef={columnAnchorRef}
-                  columns={allColumns}
-                  visibleColumns={visibleColumns}
-                  onToggleColumn={toggleColumn}
+          {!hideHeader ? (
+            <>
+              <PageHeader
+                title="Teams"
+                breadcrumbs={[
+                  { label: "Site Map", href: "#" },
+                  { label: "Access Control", href: "#" },
+                  { label: "Teams", current: true },
+                ]}
+              >
+                <SearchBar
+                  value={searchQuery}
+                  onChange={(val) => setSearchQuery(val)}
+                  placeholder="Search by Team Name, Team ID or Organization..."
                 />
-              )}
+
+                <IconButton
+                  icon={Filter}
+                  label="Filter"
+                  onClick={() => setShowFilterDrawer(true)}
+                  title="Filter Teams"
+                />
+
+                <div className="relative" ref={columnAnchorRef}>
+                  <IconButton
+                    icon={Columns3}
+                    label="Columns"
+                    onClick={() => setShowColumnPanel(!showColumnPanel)}
+                    title="Customize Table Columns"
+                  />
+                  {showColumnPanel && (
+                    <ColumnVisibilityPanel
+                      isOpen={showColumnPanel}
+                      onClose={() => setShowColumnPanel(false)}
+                      anchorRef={columnAnchorRef}
+                      columns={allColumns}
+                      visibleColumns={visibleColumns}
+                      onToggleColumn={toggleColumn}
+                    />
+                  )}
+                </div>
+
+                <IconButton
+                  icon={Download}
+                  label="Export"
+                  onClick={() => setShowExportModal(true)}
+                  title="Export Teams Data"
+                />
+
+                <IconButton
+                  icon={RefreshCw}
+                  label="Refresh"
+                  onClick={() => toast.success("Refreshed Teams listing data")}
+                  title="Refresh Table Data"
+                />
+
+                <IconButton
+                  icon={showSummary ? EyeOff : BarChart3}
+                  label={showSummary ? "Hide Summary" : "Show Summary"}
+                  onClick={() => setShowSummary(!showSummary)}
+                  title={showSummary ? "Collapse KPI Summary Cards" : "Expand KPI Summary Cards"}
+                />
+
+                <PrimaryButton icon={Plus} onClick={handleOpenCreateModal}>
+                  Create Team
+                </PrimaryButton>
+              </PageHeader>
+
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 -mt-4">
+                Manage teams, members and their access to AI models and budgets.
+              </p>
+            </>
+          ) : (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 shadow-2xs">
+              <div className="flex items-center gap-2 flex-1">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={(val) => setSearchQuery(val)}
+                  placeholder="Search by Team Name, Description or Status..."
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <IconButton
+                  icon={Filter}
+                  label="Filter"
+                  onClick={() => setShowFilterDrawer(true)}
+                  title="Filter Teams"
+                />
+
+                <div className="relative" ref={columnAnchorRef}>
+                  <IconButton
+                    icon={Columns3}
+                    label="Columns"
+                    onClick={() => setShowColumnPanel(!showColumnPanel)}
+                    title="Customize Table Columns"
+                  />
+                  {showColumnPanel && (
+                    <ColumnVisibilityPanel
+                      isOpen={showColumnPanel}
+                      onClose={() => setShowColumnPanel(false)}
+                      anchorRef={columnAnchorRef}
+                      columns={allColumns}
+                      visibleColumns={visibleColumns}
+                      onToggleColumn={toggleColumn}
+                    />
+                  )}
+                </div>
+
+                <IconButton
+                  icon={Download}
+                  label="Export"
+                  onClick={() => setShowExportModal(true)}
+                  title="Export Teams Data"
+                />
+
+                <IconButton
+                  icon={RefreshCw}
+                  label="Refresh"
+                  onClick={() => toast.success("Refreshed Teams listing data")}
+                  title="Refresh Table Data"
+                />
+
+                <IconButton
+                  icon={showSummary ? EyeOff : BarChart3}
+                  label={showSummary ? "Hide Summary" : "Show Summary"}
+                  onClick={() => setShowSummary(!showSummary)}
+                  title={showSummary ? "Collapse KPI Summary Cards" : "Expand KPI Summary Cards"}
+                />
+
+                <PrimaryButton icon={Plus} onClick={handleOpenCreateModal}>
+                  Create Team
+                </PrimaryButton>
+              </div>
             </div>
-
-            <IconButton
-              icon={Download}
-              label="Export"
-              onClick={() => setShowExportModal(true)}
-              title="Export Teams Data"
-            />
-
-            <IconButton
-              icon={RefreshCw}
-              label="Refresh"
-              onClick={() => toast.success("Refreshed Teams listing data")}
-              title="Refresh Table Data"
-            />
-
-            <IconButton
-              icon={showSummary ? EyeOff : BarChart3}
-              label={showSummary ? "Hide Summary" : "Show Summary"}
-              onClick={() => setShowSummary(!showSummary)}
-              title={showSummary ? "Collapse KPI Summary Cards" : "Expand KPI Summary Cards"}
-            />
-
-            <PrimaryButton icon={Plus} onClick={handleOpenCreateModal}>
-              Create Team
-            </PrimaryButton>
-          </PageHeader>
-
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 -mt-4">
-            Manage teams, members and their access to AI models and budgets.
-          </p>
+          )}
 
           {showSummary && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 transition-all duration-300 animate-fadeIn">
@@ -917,9 +1053,9 @@ export default function TeamsManagement() {
                                 <Eye className="w-3.5 h-3.5 text-neutral-500" />
                                 <span>View</span>
                               </button>
-                              <button onClick={() => { setActiveMenuId(null); setSelectedTeam(item); setDetailTab("settings"); setIsEditingSettings(true); setViewState("detail"); }} className="w-full px-3 py-2 hover:bg-neutral-50 flex items-center gap-2">
+                              <button onClick={() => { setActiveMenuId(null); handleOpenEditModal(item); }} className="w-full px-3 py-2 hover:bg-neutral-50 flex items-center gap-2">
                                 <Edit3 className="w-3.5 h-3.5 text-neutral-500" />
-                                <span>Edit Settings</span>
+                                <span>Edit</span>
                               </button>
                               <button onClick={() => { setActiveMenuId(null); setSelectedTeam(item); setShowDeleteModal(true); }} className="w-full px-3 py-2 text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium">
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -949,7 +1085,7 @@ export default function TeamsManagement() {
         </>
       ) : (
         /* ========================================================================= */
-        /* VIEW 2: COMPLETE TEAM DETAILS WORKSPACE & ALL 6 SUB-TABS                  */
+        /* VIEW 2: COMPLETE TEAM DETAILS WORKSPACE                                   */
         /* ========================================================================= */
         selectedTeam && (
           <div className="space-y-6 animate-fadeIn">
@@ -993,6 +1129,10 @@ export default function TeamsManagement() {
 
                 {/* Top Right Actions */}
                 <div className="flex items-center gap-2 relative action-menu-container">
+                  <PrimaryButton icon={Edit3} onClick={() => handleOpenEditModal(selectedTeam)}>
+                    Edit Team
+                  </PrimaryButton>
+
                   <button
                     type="button"
                     onClick={() => setShowMoreDetailMenu(!showMoreDetailMenu)}
@@ -1031,24 +1171,21 @@ export default function TeamsManagement() {
                 </div>
               </div>
 
-              {/* Shared Horizontal Sub-Tabs Bar */}
+              {/* Shared Horizontal Sub-Tabs Bar (Only Overview, Virtual Keys, Members) */}
               <div className="border-b border-neutral-200 dark:border-neutral-800">
                 <div className="flex gap-6 text-xs font-semibold overflow-x-auto">
-                  {(["overview", "my-users", "virtual-keys", "members", "member-permissions", "settings"] as const).map((t) => (
+                  {(["overview", "virtual-keys", "members"] as const).map((t) => (
                     <button
                       key={t}
                       type="button"
-                      onClick={() => {
-                        setDetailTab(t);
-                        if (t !== "settings") setIsEditingSettings(false);
-                      }}
-                      className={`py-3 border-b-2 transition-colors capitalize whitespace-nowrap ${
+                      onClick={() => setDetailTab(t)}
+                      className={`py-3 border-b-2 transition-colors whitespace-nowrap ${
                         detailTab === t
                           ? "border-primary-600 text-primary-600 dark:text-primary-400 font-bold"
                           : "border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-white"
                       }`}
                     >
-                      {t.replace("-", " ")}
+                      {t === "overview" ? "Overview" : t === "virtual-keys" ? "Virtual Keys" : "Members"}
                     </button>
                   ))}
                 </div>
@@ -1705,10 +1842,10 @@ export default function TeamsManagement() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-neutral-900 dark:text-white">
-                    Create Team
+                    {editingTeam ? `Edit Team — ${editingTeam.name}` : "Create Team"}
                   </h3>
                   <p className="text-xs text-neutral-500">
-                    Create a new team and configure its default access, models, rate limits, and permissions.
+                    {editingTeam ? "Update team settings, access models, rate limits, and budgets." : "Create a new team and configure its default access, models, rate limits, and permissions."}
                   </p>
                 </div>
               </div>
@@ -1859,57 +1996,116 @@ export default function TeamsManagement() {
                 </div>
               </div>
 
-              {/* SECTION 3 — BUDGET CONFIGURATION */}
-              <div className="bg-neutral-50/50 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800 rounded-xl p-4 space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
-                  <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <h4 className="font-bold text-sm text-neutral-900 dark:text-white">
-                    Budget Configuration ($ USD)
-                  </h4>
+              {/* SECTION 3 — BUDGET CONFIGURATION (1:1 Match with Reference Screenshot) */}
+              <div className="bg-neutral-50/50 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800 rounded-xl p-4.5 space-y-4">
+                <div className="flex items-center justify-between pb-2.5 border-b border-neutral-200/60 dark:border-neutral-800">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <h4 className="font-bold text-sm text-neutral-900 dark:text-white">
+                      Budget Configuration
+                    </h4>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-neutral-700 dark:text-neutral-300 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={formUnlimitedBudget}
+                      onChange={(e) => {
+                        setFormUnlimitedBudget(e.target.checked);
+                        if (e.target.checked) setFormMaxBudget("0");
+                      }}
+                      className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span>Unlimited Budget</span>
+                  </label>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Maximum Budget ($)
+                      Max Budget ($ USD)
                     </label>
                     <input
                       type="number"
-                      value={formMaxBudget}
+                      disabled={formUnlimitedBudget}
+                      value={formUnlimitedBudget ? "" : formMaxBudget}
                       onChange={(e) => setFormMaxBudget(e.target.value)}
-                      placeholder="5000"
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-mono font-semibold"
+                      placeholder={formUnlimitedBudget ? "Unlimited" : "500"}
+                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-semibold disabled:opacity-50 disabled:bg-neutral-100 dark:disabled:bg-neutral-800"
                     />
                   </div>
 
                   <div className="space-y-1">
                     <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Soft Budget Warning ($)
+                      Soft Budget ($ USD)
                     </label>
                     <input
                       type="number"
-                      value={formSoftBudget}
+                      disabled={formUnlimitedBudget}
+                      value={formUnlimitedBudget ? "" : formSoftBudget}
                       onChange={(e) => setFormSoftBudget(e.target.value)}
-                      placeholder="4000"
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-mono font-semibold"
+                      placeholder={formUnlimitedBudget ? "Unlimited" : "400"}
+                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-semibold disabled:opacity-50 disabled:bg-neutral-100 dark:disabled:bg-neutral-800"
                     />
                   </div>
 
                   <div className="space-y-1">
                     <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Budget Reset Cycle
+                      Budget Reset Duration
                     </label>
                     <select
                       value={formResetCycle}
                       onChange={(e) => setFormResetCycle(e.target.value as any)}
                       className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-semibold"
                     >
+                      <option value="Infinite">Lifetime</option>
                       <option value="Monthly">Monthly</option>
                       <option value="Quarterly">Quarterly</option>
                       <option value="Annual">Annual</option>
-                      <option value="Infinite">Infinite (Never)</option>
                     </select>
                   </div>
+                </div>
+
+                {/* Budget Notification Email */}
+                <div className="space-y-1.5 pt-1">
+                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                    Budget Notification Email
+                  </label>
+                  <div className="min-h-11 p-2 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-xl flex flex-wrap items-center gap-2">
+                    {formNotificationEmails.map((email) => (
+                      <span
+                        key={email}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-800 dark:text-neutral-200"
+                      >
+                        {email}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEmailTag(email)}
+                          className="text-neutral-400 hover:text-neutral-700 dark:hover:text-white transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      type="email"
+                      value={emailInputText}
+                      onChange={(e) => setEmailInputText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
+                          e.preventDefault();
+                          handleAddEmailTag(emailInputText);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (emailInputText) handleAddEmailTag(emailInputText);
+                      }}
+                      placeholder="Add email..."
+                      className="flex-1 min-w-[140px] h-7 text-xs bg-transparent border-none focus:outline-none text-neutral-900 dark:text-white placeholder:text-neutral-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-neutral-400 font-medium">
+                    Recipients receive email notifications when Soft Budget or Maximum Budget is reached.
+                  </p>
                 </div>
               </div>
 
@@ -1966,7 +2162,7 @@ export default function TeamsManagement() {
                 onClick={handleCreateTeamSubmit}
                 disabled={!isCreateTeamFormValid || isSubmitting}
               >
-                {isSubmitting ? "Creating Team..." : "Create Team"}
+                {isSubmitting ? (editingTeam ? "Updating Team..." : "Creating Team...") : (editingTeam ? "Update Team" : "Create Team")}
               </PrimaryButton>
             </div>
           </div>
@@ -2092,3 +2288,5 @@ export default function TeamsManagement() {
     </div>
   );
 }
+
+export default TeamsManagement;

@@ -274,7 +274,13 @@ const AVAILABLE_MODELS_LIST = [
   "mistral-large"
 ];
 
-export default function UserManagement() {
+export interface UserManagementProps {
+  hideHeader?: boolean;
+  orgName?: string;
+  orgId?: string;
+}
+
+export function UserManagement({ hideHeader = false, orgName, orgId }: UserManagementProps) {
   // Navigation & View mode state
   const [viewModeState, setViewModeState] = useState<'list' | 'detail' | 'edit'>('list');
   const [selectedLegacyUser, setSelectedLegacyUser] = useState<User | null>(null);
@@ -346,9 +352,9 @@ export default function UserManagement() {
   const [resetPasswordUser, setResetPasswordUser] = useState<InternalUser | null>(null);
   const [deleteUserTarget, setDeleteUserTarget] = useState<InternalUser | null>(null);
 
-  /* -------------------- MODAL POPUP STATES -------------------- */
   // Screen 1: Invite User Modal
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRoleOption, setInviteRoleOption] = useState(AVAILABLE_ROLES_OPTIONS[3]);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
@@ -361,10 +367,32 @@ export default function UserManagement() {
 
   const [inviteUnlimitedBudget, setInviteUnlimitedBudget] = useState(false);
   const [inviteMaxBudget, setInviteMaxBudget] = useState('500');
-  const [inviteBudgetReset, setInviteBudgetReset] = useState('Monthly');
+  const [inviteSoftBudget, setInviteSoftBudget] = useState('400');
+  const [inviteBudgetReset, setInviteBudgetReset] = useState('Lifetime');
+  const [inviteNotificationEmails, setInviteNotificationEmails] = useState<string[]>(['john@company.com']);
+  const [inviteEmailInputText, setInviteEmailInputText] = useState('');
+  const [inviteTpm, setInviteTpm] = useState('100000');
+  const [inviteRpm, setInviteRpm] = useState('1000');
+
   const [inviteMetadata, setInviteMetadata] = useState('');
   const [inviteTouched, setInviteTouched] = useState(false);
   const [inviteIsSubmitting, setInviteIsSubmitting] = useState(false);
+
+  // More Options Menu & Default Settings Modal State
+  const [showMoreActionsMenu, setShowMoreActionsMenu] = useState(false);
+  const [showDefaultSettingsModal, setShowDefaultSettingsModal] = useState(false);
+
+  const handleAddInviteEmailTag = (emailStr: string) => {
+    const trimmed = emailStr.trim().toLowerCase();
+    if (trimmed && trimmed.includes('@') && !inviteNotificationEmails.includes(trimmed)) {
+      setInviteNotificationEmails((prev) => [...prev, trimmed]);
+      setInviteEmailInputText('');
+    }
+  };
+
+  const handleRemoveInviteEmailTag = (emailToRemove: string) => {
+    setInviteNotificationEmails((prev) => prev.filter((e) => e !== emailToRemove));
+  };
 
   // Screen 2: Bulk Invite Users Modal
   const [showBulkInviteModal, setShowBulkInviteModal] = useState(false);
@@ -421,7 +449,23 @@ export default function UserManagement() {
   const [showEditRoleDropdown, setShowEditRoleDropdown] = useState(false);
   const [editDefaultUnlimitedBudget, setEditDefaultUnlimitedBudget] = useState(false);
   const [editDefaultMaxBudget, setEditDefaultMaxBudget] = useState('500');
-  const [editDefaultBudgetReset, setEditDefaultBudgetReset] = useState('Monthly');
+  const [editDefaultSoftBudget, setEditDefaultSoftBudget] = useState('400');
+  const [editDefaultBudgetReset, setEditDefaultBudgetReset] = useState('Lifetime');
+  const [editDefaultNotificationEmails, setEditDefaultNotificationEmails] = useState<string[]>(['john@company.com']);
+  const [editDefaultEmailInputText, setEditDefaultEmailInputText] = useState('');
+
+  const handleAddDefaultEmailTag = (emailStr: string) => {
+    const trimmed = emailStr.trim().toLowerCase();
+    if (trimmed && trimmed.includes('@') && !editDefaultNotificationEmails.includes(trimmed)) {
+      setEditDefaultNotificationEmails((prev) => [...prev, trimmed]);
+      setEditDefaultEmailInputText('');
+    }
+  };
+
+  const handleRemoveDefaultEmailTag = (emailToRemove: string) => {
+    setEditDefaultNotificationEmails((prev) => prev.filter((e) => e !== emailToRemove));
+  };
+
   const [editDefaultModels, setEditDefaultModels] = useState<string[]>(['gpt-4o', 'claude-3-5-sonnet']);
   const [editDefaultModelPreset, setEditDefaultModelPreset] = useState<'Configured Models' | 'All Proxy Models' | 'No Default Models'>('Configured Models');
   const [editDefaultTeams, setEditDefaultTeams] = useState<string[]>(['AI Research']);
@@ -838,15 +882,21 @@ export default function UserManagement() {
 
   /* -------------------- INVITE USER HANDLER -------------------- */
   const handleOpenInviteModal = () => {
+    setInviteName('');
     setInviteEmail('');
     setInviteRoleOption(AVAILABLE_ROLES_OPTIONS[3]);
-    setInviteOrg('HB Enterprise');
+    setInviteOrg(orgName || 'HB Enterprise');
     setInviteTeams(['AI Research']);
     setInviteModels(['gpt-4o', 'claude-3-5-sonnet']);
     setInviteModelPreset('Configured Models');
     setInviteUnlimitedBudget(false);
     setInviteMaxBudget('500');
-    setInviteBudgetReset('Monthly');
+    setInviteSoftBudget('400');
+    setInviteBudgetReset('Lifetime');
+    setInviteNotificationEmails(['john@company.com']);
+    setInviteEmailInputText('');
+    setInviteTpm('100000');
+    setInviteRpm('1000');
     setInviteMetadata('');
     setInviteTouched(false);
     setInviteIsSubmitting(false);
@@ -859,7 +909,7 @@ export default function UserManagement() {
 
     setInviteIsSubmitting(true);
     setTimeout(() => {
-      const alias = inviteEmail.split('@')[0].replace('.', ' ');
+      const alias = inviteName.trim() || inviteEmail.split('@')[0].replace('.', ' ');
       const formattedAlias = alias.charAt(0).toUpperCase() + alias.slice(1);
       const newUser: InternalUser = {
         id: `usr-lite-${Math.random().toString(36).substr(2, 6)}`,
@@ -1003,103 +1053,196 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="p-6 bg-transparent dark:bg-neutral-950 space-y-6">
-      {/* 1. HB PAGE HEADER */}
-      <PageHeader
-        pageId="internal-users"
-        action="list"
-      >
-        <div className="flex items-center gap-2">
-          {/* Action 1: Invite User (Primary) */}
-          <PrimaryButton
-            icon={Plus}
-            onClick={handleOpenInviteModal}
+    <div className={`${hideHeader ? "p-0 space-y-4" : "p-6 bg-transparent dark:bg-neutral-950 space-y-6"}`}>
+      {/* Top Action Header / Buttons Row */}
+      {!hideHeader ? (
+        <>
+          <PageHeader
+            pageId="internal-users"
+            action="list"
           >
+            <div className="flex items-center gap-2">
+              <PrimaryButton icon={Plus} onClick={handleOpenInviteModal}>
+                Invite User
+              </PrimaryButton>
+
+              <PrimaryButton icon={Upload} onClick={handleOpenBulkInviteModal}>
+                Bulk Invite Users
+              </PrimaryButton>
+
+              {activeTab === 'users' && (
+                isMultiSelectActive ? (
+                  <>
+                    <PrimaryButton
+                      icon={Edit3}
+                      disabled={selectedUserIds.size === 0}
+                      onClick={handleOpenBulkEditModal}
+                    >
+                      Bulk Edit ({selectedUserIds.size} Selected)
+                    </PrimaryButton>
+
+                    <SecondaryButton
+                      icon={X}
+                      onClick={() => {
+                        setIsMultiSelectActive(false);
+                        setSelectedUserIds(new Set());
+                      }}
+                    >
+                      Cancel Selection
+                    </SecondaryButton>
+                  </>
+                ) : (
+                  <SecondaryButton
+                    icon={CheckSquare}
+                    onClick={() => setIsMultiSelectActive(true)}
+                  >
+                    Select Users
+                  </SecondaryButton>
+                )
+              )}
+
+              {/* More (⋮) Menu Button */}
+              <div className="relative more-actions-menu-container">
+                <button
+                  type="button"
+                  onClick={() => setShowMoreActionsMenu(!showMoreActionsMenu)}
+                  className="h-9 w-9 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors flex items-center justify-center shadow-2xs"
+                  title="More Options"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+
+                {showMoreActionsMenu && (
+                  <div className="absolute right-0 top-full mt-1 z-40 w-52 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-1 text-xs animate-fadeIn">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMoreActionsMenu(false);
+                        handleStartEditDefaultSettings();
+                        setShowDefaultSettingsModal(true);
+                      }}
+                      className="w-full px-3 py-2 text-left text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 flex items-center gap-2 font-medium"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-neutral-500" />
+                      <span>Default User Settings</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </PageHeader>
+
+          {/* Sub-Tabs (Only shown when not in hideHeader mode) */}
+          <div className="border-b border-neutral-200 dark:border-neutral-800">
+            <nav className="-mb-px flex gap-6 text-sm font-semibold" aria-label="Tabs">
+              <button
+                type="button"
+                onClick={() => setActiveTab('users')}
+                className={`py-2.5 px-1 border-b-2 transition-colors flex items-center gap-2 ${
+                  activeTab === 'users'
+                    ? 'border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                Users
+                <span className="px-2 py-0.5 rounded-full text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
+                  {usersList.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('default-settings')}
+                className={`py-2.5 px-1 border-b-2 transition-colors flex items-center gap-2 ${
+                  activeTab === 'default-settings'
+                    ? 'border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
+                }`}
+              >
+                <Lock className="w-4 h-4" />
+                Default User Settings
+              </button>
+            </nav>
+          </div>
+        </>
+      ) : (
+        /* Top Action Buttons (Inside Tab Context) */
+        <div className="flex flex-wrap items-center justify-end gap-2 pb-1">
+          <PrimaryButton icon={Plus} onClick={handleOpenInviteModal}>
             Invite User
           </PrimaryButton>
 
-          {/* Action 2: Bulk Invite Users (Primary) */}
-          <PrimaryButton
-            icon={Upload}
-            onClick={handleOpenBulkInviteModal}
-          >
+          <PrimaryButton icon={Upload} onClick={handleOpenBulkInviteModal}>
             Bulk Invite Users
           </PrimaryButton>
 
-          {/* Action 3: Multi-Select Mode Toggle / Bulk Edit */}
-          {activeTab === 'users' && (
-            isMultiSelectActive ? (
-              <>
-                <PrimaryButton
-                  icon={Edit3}
-                  disabled={selectedUserIds.size === 0}
-                  onClick={handleOpenBulkEditModal}
-                >
-                  Bulk Edit ({selectedUserIds.size} Selected)
-                </PrimaryButton>
-
-                <SecondaryButton
-                  icon={X}
-                  onClick={() => {
-                    setIsMultiSelectActive(false);
-                    setSelectedUserIds(new Set());
-                  }}
-                >
-                  Cancel Selection
-                </SecondaryButton>
-              </>
-            ) : (
-              <SecondaryButton
-                icon={CheckSquare}
-                onClick={() => setIsMultiSelectActive(true)}
+          {isMultiSelectActive ? (
+            <>
+              <PrimaryButton
+                icon={Edit3}
+                disabled={selectedUserIds.size === 0}
+                onClick={handleOpenBulkEditModal}
               >
-                Select Users
+                Bulk Edit ({selectedUserIds.size} Selected)
+              </PrimaryButton>
+
+              <SecondaryButton
+                icon={X}
+                onClick={() => {
+                  setIsMultiSelectActive(false);
+                  setSelectedUserIds(new Set());
+                }}
+              >
+                Cancel Selection
               </SecondaryButton>
-            )
+            </>
+          ) : (
+            <SecondaryButton
+              icon={CheckSquare}
+              onClick={() => setIsMultiSelectActive(true)}
+            >
+              Select Users
+            </SecondaryButton>
           )}
+
+          {/* More (⋮) Menu Button */}
+          <div className="relative more-actions-menu-container">
+            <button
+              type="button"
+              onClick={() => setShowMoreActionsMenu(!showMoreActionsMenu)}
+              className="h-9 w-9 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors flex items-center justify-center shadow-2xs"
+              title="More Options"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            {showMoreActionsMenu && (
+              <div className="absolute right-0 top-full mt-1 z-40 w-52 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-1 text-xs animate-fadeIn">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMoreActionsMenu(false);
+                    handleStartEditDefaultSettings();
+                    setShowDefaultSettingsModal(true);
+                  }}
+                  className="w-full px-3 py-2 text-left text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 flex items-center gap-2 font-medium"
+                >
+                  <Lock className="w-3.5 h-3.5 text-neutral-500" />
+                  <span>Default User Settings</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </PageHeader>
-
-      {/* 2. TABS (Users & Default User Settings) */}
-      <div className="border-b border-neutral-200 dark:border-neutral-800">
-        <nav className="-mb-px flex gap-6 text-sm font-semibold" aria-label="Tabs">
-          <button
-            type="button"
-            onClick={() => setActiveTab('users')}
-            className={`py-2.5 px-1 border-b-2 transition-colors flex items-center gap-2 ${
-              activeTab === 'users'
-                ? 'border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            Users
-            <span className="px-2 py-0.5 rounded-full text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
-              {usersList.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('default-settings')}
-            className={`py-2.5 px-1 border-b-2 transition-colors flex items-center gap-2 ${
-              activeTab === 'default-settings'
-                ? 'border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
-            }`}
-          >
-            <Lock className="w-4 h-4" />
-            Default User Settings
-          </button>
-        </nav>
-      </div>
+      )}
 
       {/* TAB 1: USERS LISTING */}
-      {activeTab === 'users' && (
+      {(activeTab === 'users' || hideHeader) && (
         <>
-          {/* 3. SUMMARY KPI CARDS (Collapsible) */}
+          {/* SUMMARY KPI CARDS (4 Cards when hideHeader matching reference) */}
           {showSummary && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 transition-all duration-300 animate-fadeIn">
+            <div className={`grid grid-cols-2 ${hideHeader ? "md:grid-cols-4" : "md:grid-cols-3 lg:grid-cols-5"} gap-3.5 sm:gap-4 transition-all duration-300 animate-fadeIn`}>
               {/* Total Users */}
               <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-2xs hover:shadow-xs transition-shadow">
                 <div className="flex items-center justify-between mb-1">
@@ -1130,19 +1273,20 @@ export default function UserManagement() {
                 </div>
               </div>
 
-              {/* Admin Users */}
-              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-2xs hover:shadow-xs transition-shadow">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Admin Users</span>
-                  <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              {!hideHeader && (
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-2xs hover:shadow-xs transition-shadow">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Admin Users</span>
+                    <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  {isLoading ? (
+                    <div className="h-7 bg-neutral-200 dark:bg-neutral-800 rounded w-16 animate-pulse my-1" />
+                  ) : (
+                    <div className="text-2xl font-bold text-neutral-900 dark:text-white mb-0.5">{adminCount}</div>
+                  )}
+                  <div className="text-[11px] text-neutral-400 dark:text-neutral-500">System & Platform Admins</div>
                 </div>
-                {isLoading ? (
-                  <div className="h-7 bg-neutral-200 dark:bg-neutral-800 rounded w-16 animate-pulse my-1" />
-                ) : (
-                  <div className="text-2xl font-bold text-neutral-900 dark:text-white mb-0.5">{adminCount}</div>
-                )}
-                <div className="text-[11px] text-neutral-400 dark:text-neutral-500">System & Platform Admins</div>
-              </div>
+              )}
 
               {/* Organization Admins */}
               <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-2xs hover:shadow-xs transition-shadow">
@@ -1176,10 +1320,19 @@ export default function UserManagement() {
             </div>
           )}
 
-          {/* 4. TOOLBAR */}
+          {/* 4. TOOLBAR (Search & Filter moved to far right next to Columns/Export/Refresh/Summary) */}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-neutral-900 p-3 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-2xs">
-            {/* Left: HB Expandable Search */}
             <div className="flex items-center gap-2">
+              {isMultiSelectActive && (
+                <span className="text-xs font-semibold text-primary-600 dark:text-primary-400">
+                  {selectedUserIds.size} Users Selected
+                </span>
+              )}
+            </div>
+
+            {/* Single Right Group: Search, Filter, Columns, Export, Refresh, Show/Hide Summary */}
+            <div className="flex items-center gap-2">
+              {/* HB Expandable Search */}
               {isSearchExpanded ? (
                 <div className="relative flex items-center animate-fadeIn">
                   <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -1229,7 +1382,7 @@ export default function UserManagement() {
 
                 {/* HB Filter Drawer Modal */}
                 {showFilterDrawer && (
-                  <div className="absolute left-0 top-full mt-2 z-40 w-80 bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl p-4 space-y-4 animate-fadeIn">
+                  <div className="absolute right-0 top-full mt-2 z-40 w-80 bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl p-4 space-y-4 animate-fadeIn">
                     <div className="flex items-center justify-between pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
                       <div className="flex items-center gap-2">
                         <SlidersHorizontal className="w-4 h-4 text-primary-600 dark:text-primary-400" />
@@ -1323,10 +1476,6 @@ export default function UserManagement() {
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Right Action Icons */}
-            <div className="flex items-center gap-1.5">
               <div className="relative column-panel-container">
                 <IconButton
                   icon={Columns}
@@ -1966,66 +2115,131 @@ export default function UserManagement() {
                 </div>
               </div>
 
-              <div className="bg-neutral-50/50 dark:bg-neutral-900/40 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <h4 className="font-bold text-sm text-neutral-900 dark:text-white">Budget Configuration</h4>
+              {/* Budget Configuration (1:1 Match with Reference) */}
+              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-4 shadow-2xs">
+                <div className="flex items-center justify-between pb-3 border-b border-neutral-200/80 dark:border-neutral-800">
+                  <div>
+                    <h4 className="font-bold text-sm text-neutral-900 dark:text-white flex items-center gap-1.5">
+                      <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      Budget Configuration
+                    </h4>
+                    <p className="text-[11px] text-neutral-400 dark:text-neutral-500 font-normal">
+                      Set maximum spend limits and automated reset schedules.
+                    </p>
                   </div>
-
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-neutral-800 dark:text-neutral-200 select-none">
                     <input
                       type="checkbox"
                       checked={editDefaultUnlimitedBudget}
-                      onChange={(e) => setEditDefaultUnlimitedBudget(e.target.checked)}
-                      className="w-4 h-4 rounded text-primary-600 focus:ring-primary-500"
+                      onChange={(e) => {
+                        setEditDefaultUnlimitedBudget(e.target.checked);
+                        if (e.target.checked) setEditDefaultMaxBudget('0');
+                      }}
+                      className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
                     />
                     <span>Unlimited Budget</span>
                   </label>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Maximum Budget */}
                   <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Max Budget ($ USD) {!editDefaultUnlimitedBudget && <span className="text-rose-500">*</span>}
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                      Maximum Budget ($)
                     </label>
-                    <input
-                      type="number"
-                      disabled={editDefaultUnlimitedBudget}
-                      value={editDefaultUnlimitedBudget ? '' : editDefaultMaxBudget}
-                      onChange={(e) => setEditDefaultMaxBudget(e.target.value)}
-                      placeholder={editDefaultUnlimitedBudget ? "Unlimited" : "500"}
-                      className={`w-full h-10 px-3 bg-white dark:bg-neutral-950 border rounded-lg text-xs font-mono font-semibold text-neutral-900 dark:text-white disabled:opacity-50 disabled:bg-neutral-100 dark:disabled:bg-neutral-900 ${
-                        editSettingsTouched && !isEditSettingsBudgetValid
-                          ? "border-rose-500 focus:ring-2 focus:ring-rose-500/20"
-                          : "border-neutral-300 dark:border-neutral-700"
-                      }`}
-                    />
-                    {editSettingsTouched && !isEditSettingsBudgetValid && (
-                      <p className="text-[11px] text-rose-500 font-medium flex items-center gap-1 mt-1">
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                        Max budget is required when Unlimited Budget is disabled.
-                      </p>
-                    )}
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-medium">$</span>
+                      <input
+                        type="number"
+                        disabled={editDefaultUnlimitedBudget}
+                        value={editDefaultUnlimitedBudget ? '' : editDefaultMaxBudget}
+                        onChange={(e) => setEditDefaultMaxBudget(e.target.value)}
+                        placeholder={editDefaultUnlimitedBudget ? "Unlimited" : "500"}
+                        className="w-full h-10 pl-7 pr-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-900 dark:text-white disabled:opacity-50 disabled:bg-neutral-100 dark:disabled:bg-neutral-800"
+                      />
+                    </div>
+                    <p className="text-[10px] text-neutral-400">Enter 0 for unlimited hard budget cap.</p>
                   </div>
 
+                  {/* Soft Budget */}
                   <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                      Soft Budget ($)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-medium">$</span>
+                      <input
+                        type="number"
+                        disabled={editDefaultUnlimitedBudget}
+                        value={editDefaultUnlimitedBudget ? '' : editDefaultSoftBudget}
+                        onChange={(e) => setEditDefaultSoftBudget(e.target.value)}
+                        placeholder={editDefaultUnlimitedBudget ? "Unlimited" : "400"}
+                        className="w-full h-10 pl-7 pr-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-900 dark:text-white disabled:opacity-50 disabled:bg-neutral-100 dark:disabled:bg-neutral-800"
+                      />
+                    </div>
+                    <p className="text-[10px] text-neutral-400">Alert triggers at this spend threshold.</p>
+                  </div>
+
+                  {/* Budget Reset Duration */}
+                  <div className="space-y-1">
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
                       Budget Reset Duration
                     </label>
                     <select
                       value={editDefaultBudgetReset}
                       onChange={(e) => setEditDefaultBudgetReset(e.target.value)}
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-semibold text-neutral-900 dark:text-white"
+                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-900 dark:text-white"
                     >
-                      <option value="Daily">Daily</option>
-                      <option value="Weekly">Weekly</option>
+                      <option value="Lifetime">Lifetime</option>
                       <option value="Monthly">Monthly</option>
                       <option value="Quarterly">Quarterly</option>
-                      <option value="Yearly">Yearly</option>
-                      <option value="Never">Never (One-Time Cap)</option>
+                      <option value="Annual">Annual</option>
                     </select>
+                    <p className="text-[10px] text-neutral-400">Resets accrued spend counter.</p>
                   </div>
+                </div>
+
+                {/* Budget Notification Email Tag Container */}
+                <div className="space-y-1.5 pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                  <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                    Budget Notification Email
+                  </label>
+                  <div className="min-h-11 p-2 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-xl flex flex-wrap items-center gap-2">
+                    {editDefaultNotificationEmails.map((email) => (
+                      <span
+                        key={email}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-800 dark:text-neutral-200"
+                      >
+                        {email}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDefaultEmailTag(email)}
+                          className="text-neutral-400 hover:text-neutral-700 dark:hover:text-white transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      type="email"
+                      value={editDefaultEmailInputText}
+                      onChange={(e) => setEditDefaultEmailInputText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
+                          e.preventDefault();
+                          handleAddDefaultEmailTag(editDefaultEmailInputText);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (editDefaultEmailInputText) handleAddDefaultEmailTag(editDefaultEmailInputText);
+                      }}
+                      placeholder="Add email..."
+                      className="flex-1 min-w-[140px] h-7 text-xs bg-transparent border-none focus:outline-none text-neutral-900 dark:text-white placeholder:text-neutral-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-neutral-400 font-medium">
+                    Recipients receive email notifications when Soft Budget or Maximum Budget is reached.
+                  </p>
                 </div>
               </div>
 
@@ -2224,6 +2438,7 @@ export default function UserManagement() {
 
             <div className="p-6 overflow-y-auto flex-1 space-y-6 text-xs custom-scrollbar">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Card 1: Basic Information */}
                 <div className="bg-neutral-50/50 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800 rounded-xl p-4 space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
                     <Users className="w-4 h-4 text-primary-600 dark:text-primary-400" />
@@ -2231,6 +2446,21 @@ export default function UserManagement() {
                   </div>
 
                   <div className="space-y-4">
+                    {/* User Full Name */}
+                    <div className="space-y-1">
+                      <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                        Full Name <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={inviteName}
+                        onChange={(e) => setInviteName(e.target.value)}
+                        placeholder="e.g. John Doe"
+                        className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:border-primary-500 focus:ring-primary-500/20 transition-all"
+                      />
+                    </div>
+
+                    {/* User Email */}
                     <div className="space-y-1">
                       <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
                         User Email <span className="text-rose-500">*</span>
@@ -2254,6 +2484,7 @@ export default function UserManagement() {
                       )}
                     </div>
 
+                    {/* Role */}
                     <div className="space-y-1 relative role-select-dropdown">
                       <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
                         Role <span className="text-rose-500">*</span>
@@ -2299,50 +2530,14 @@ export default function UserManagement() {
                   </div>
                 </div>
 
+                {/* Card 2: Assigned Teams (Organization Dropdown Removed) */}
                 <div className="bg-neutral-50/50 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800 rounded-xl p-4 space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
                     <Building2 className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                    <h4 className="font-bold text-sm text-neutral-900 dark:text-white">Organization & Teams</h4>
+                    <h4 className="font-bold text-sm text-neutral-900 dark:text-white">Assigned Teams</h4>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="space-y-1 relative org-select-dropdown">
-                      <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                        Organization <span className="text-rose-500">*</span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowOrgDropdown(!showOrgDropdown)}
-                        className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-semibold text-neutral-900 dark:text-white flex items-center justify-between hover:border-neutral-400 transition-colors"
-                      >
-                        <span>{inviteOrg}</span>
-                        <ChevronDown className="w-4 h-4 text-neutral-400 shrink-0" />
-                      </button>
-
-                      {showOrgDropdown && (
-                        <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl p-1 space-y-0.5 animate-fadeIn">
-                          {AVAILABLE_ORGANIZATIONS.map((org) => (
-                            <button
-                              key={org}
-                              type="button"
-                              onClick={() => {
-                                setInviteOrg(org);
-                                setShowOrgDropdown(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between transition-colors ${
-                                inviteOrg === org
-                                  ? "bg-primary-50 dark:bg-primary-950/50 text-primary-600 font-semibold"
-                                  : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900"
-                              }`}
-                            >
-                              <span>{org}</span>
-                              {inviteOrg === org && <Check className="w-3.5 h-3.5 text-primary-600" />}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
                     <div className="space-y-1 relative team-select-dropdown">
                       <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
                         Assigned Teams
@@ -2411,6 +2606,7 @@ export default function UserManagement() {
                 </div>
               </div>
 
+              {/* Card 3: Personal Models Access */}
               <div className="bg-neutral-50/50 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800 rounded-xl p-4 space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
                   <div className="flex items-center gap-2">
@@ -2472,55 +2668,170 @@ export default function UserManagement() {
                 </div>
               </div>
 
-              <div className="bg-neutral-50/50 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800 rounded-xl p-4 space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <h4 className="font-bold text-sm text-neutral-900 dark:text-white">Budget Configuration</h4>
+              {/* Card 4: Budget Configuration (1:1 Match with Screenshot 2) */}
+              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-4 shadow-2xs">
+                <div className="flex items-center justify-between pb-3 border-b border-neutral-200/80 dark:border-neutral-800">
+                  <div>
+                    <h4 className="font-bold text-sm text-neutral-900 dark:text-white flex items-center gap-1.5">
+                      <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      Budget Configuration
+                    </h4>
+                    <p className="text-[11px] text-neutral-400 dark:text-neutral-500 font-normal">
+                      Set maximum spend limits and automated reset schedules.
+                    </p>
                   </div>
-
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-neutral-800 dark:text-neutral-200 select-none">
                     <input
                       type="checkbox"
                       checked={inviteUnlimitedBudget}
-                      onChange={(e) => setInviteUnlimitedBudget(e.target.checked)}
-                      className="w-4 h-4 rounded text-primary-600 focus:ring-primary-500"
+                      onChange={(e) => {
+                        setInviteUnlimitedBudget(e.target.checked);
+                        if (e.target.checked) setInviteMaxBudget('0');
+                      }}
+                      className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
                     />
                     <span>Unlimited Budget</span>
                   </label>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Max Budget ($ USD)
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                      Maximum Budget ($)
                     </label>
-                    <input
-                      type="number"
-                      disabled={inviteUnlimitedBudget}
-                      value={inviteUnlimitedBudget ? '' : inviteMaxBudget}
-                      onChange={(e) => setInviteMaxBudget(e.target.value)}
-                      placeholder={inviteUnlimitedBudget ? "Unlimited" : "500"}
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-mono font-semibold text-neutral-900 dark:text-white disabled:opacity-50 disabled:bg-neutral-100 dark:disabled:bg-neutral-900"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-medium">$</span>
+                      <input
+                        type="number"
+                        disabled={inviteUnlimitedBudget}
+                        value={inviteUnlimitedBudget ? '' : inviteMaxBudget}
+                        onChange={(e) => setInviteMaxBudget(e.target.value)}
+                        placeholder={inviteUnlimitedBudget ? "Unlimited" : "500"}
+                        className="w-full h-10 pl-7 pr-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-900 dark:text-white disabled:opacity-50 disabled:bg-neutral-100 dark:disabled:bg-neutral-800"
+                      />
+                    </div>
+                    <p className="text-[10px] text-neutral-400">Enter 0 for unlimited hard budget cap.</p>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                      Soft Budget ($)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-medium">$</span>
+                      <input
+                        type="number"
+                        disabled={inviteUnlimitedBudget}
+                        value={inviteUnlimitedBudget ? '' : inviteSoftBudget}
+                        onChange={(e) => setInviteSoftBudget(e.target.value)}
+                        placeholder={inviteUnlimitedBudget ? "Unlimited" : "400"}
+                        className="w-full h-10 pl-7 pr-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-900 dark:text-white disabled:opacity-50 disabled:bg-neutral-100 dark:disabled:bg-neutral-800"
+                      />
+                    </div>
+                    <p className="text-[10px] text-neutral-400">Alert triggers at this spend threshold.</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
                       Budget Reset Duration
                     </label>
                     <select
                       value={inviteBudgetReset}
                       onChange={(e) => setInviteBudgetReset(e.target.value)}
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-semibold text-neutral-900 dark:text-white"
+                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-900 dark:text-white"
                     >
-                      <option value="Daily">Daily</option>
-                      <option value="Weekly">Weekly</option>
+                      <option value="Lifetime">Lifetime</option>
                       <option value="Monthly">Monthly</option>
                       <option value="Quarterly">Quarterly</option>
-                      <option value="Yearly">Yearly</option>
-                      <option value="Never">Never (One-Time Cap)</option>
+                      <option value="Annual">Annual</option>
                     </select>
+                    <p className="text-[10px] text-neutral-400">Resets accrued spend counter.</p>
+                  </div>
+                </div>
+
+                {/* Budget Notification Email Tag Container */}
+                <div className="space-y-1.5 pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                  <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                    Budget Notification Email
+                  </label>
+                  <div className="min-h-11 p-2 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-xl flex flex-wrap items-center gap-2">
+                    {inviteNotificationEmails.map((email) => (
+                      <span
+                        key={email}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-800 dark:text-neutral-200"
+                      >
+                        {email}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveInviteEmailTag(email)}
+                          className="text-neutral-400 hover:text-neutral-700 dark:hover:text-white transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      type="email"
+                      value={inviteEmailInputText}
+                      onChange={(e) => setInviteEmailInputText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
+                          e.preventDefault();
+                          handleAddInviteEmailTag(inviteEmailInputText);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (inviteEmailInputText) handleAddInviteEmailTag(inviteEmailInputText);
+                      }}
+                      placeholder="Add email..."
+                      className="flex-1 min-w-[140px] h-7 text-xs bg-transparent border-none focus:outline-none text-neutral-900 dark:text-white placeholder:text-neutral-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-neutral-400 font-medium">
+                    Recipients receive email notifications when Soft Budget or Maximum Budget is reached.
+                  </p>
+                </div>
+              </div>
+
+              {/* Card 5: Rate Limits (1:1 Match with Screenshot 2) */}
+              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-4 shadow-2xs">
+                <div className="pb-3 border-b border-neutral-200/80 dark:border-neutral-800">
+                  <h4 className="font-bold text-sm text-neutral-900 dark:text-white flex items-center gap-1.5">
+                    <Sliders className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    Rate Limits
+                  </h4>
+                  <p className="text-[11px] text-neutral-400 dark:text-neutral-500 font-normal">
+                    Configure Tokens Per Minute (TPM) and Requests Per Minute (RPM).
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                      TPM (Tokens Per Minute)
+                    </label>
+                    <input
+                      type="number"
+                      value={inviteTpm}
+                      onChange={(e) => setInviteTpm(e.target.value)}
+                      placeholder="100000"
+                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-900 dark:text-white"
+                    />
+                    <p className="text-[10px] text-neutral-400">Default: 100,000 TPM limit.</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                      RPM (Requests Per Minute)
+                    </label>
+                    <input
+                      type="number"
+                      value={inviteRpm}
+                      onChange={(e) => setInviteRpm(e.target.value)}
+                      placeholder="1000"
+                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-900 dark:text-white"
+                    />
+                    <p className="text-[10px] text-neutral-400">Default: 1,000 RPM limit.</p>
                   </div>
                 </div>
               </div>
@@ -3263,6 +3574,293 @@ export default function UserManagement() {
           </div>
         </div>
       )}
+      {/* -------------------- MODAL: DEFAULT USER SETTINGS -------------------- */}
+      {showDefaultSettingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden my-auto text-xs">
+            <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between flex-shrink-0 bg-neutral-50/50 dark:bg-neutral-900/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-950/60 border border-primary-200/60 dark:border-primary-800/60 flex items-center justify-center text-primary-600 dark:text-primary-400">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                    Default User Settings
+                  </h3>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                    Configure default values automatically assigned when inviting new users.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDefaultSettingsModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                title="Close Modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 space-y-6 custom-scrollbar">
+              {/* Default Role */}
+              <div className="space-y-1 relative edit-role-select-dropdown">
+                <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                  Default User Role <span className="text-rose-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowEditRoleDropdown(!showEditRoleDropdown)}
+                  className="w-full min-h-[40px] px-3 py-2 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-left text-neutral-900 dark:text-white flex items-center justify-between hover:border-neutral-400 transition-colors"
+                >
+                  <div>
+                    <div className="font-semibold text-neutral-900 dark:text-white">{editDefaultRoleOption.name}</div>
+                    <div className="text-[10px] text-neutral-400">{editDefaultRoleOption.description}</div>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-neutral-400 shrink-0 ml-2" />
+                </button>
+
+                {showEditRoleDropdown && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl p-1 space-y-1 animate-fadeIn max-h-56 overflow-y-auto">
+                    {AVAILABLE_ROLES_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.name}
+                        type="button"
+                        onClick={() => {
+                          setEditDefaultRoleOption(opt);
+                          setShowEditRoleDropdown(false);
+                        }}
+                        className={`w-full text-left p-2.5 rounded-lg transition-colors flex items-start justify-between ${
+                          editDefaultRoleOption.name === opt.name
+                            ? "bg-primary-50 dark:bg-primary-950/50 border border-primary-200/60 dark:border-primary-800/60"
+                            : "hover:bg-neutral-50 dark:hover:bg-neutral-900"
+                        }`}
+                      >
+                        <div>
+                          <div className="font-semibold text-neutral-900 dark:text-white">{opt.name}</div>
+                          <div className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-0.5">{opt.description}</div>
+                        </div>
+                        {editDefaultRoleOption.name === opt.name && <Check className="w-4 h-4 text-primary-600 shrink-0 mt-0.5" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Budget Configuration (1:1 Match with Reference) */}
+              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-4 shadow-2xs">
+                <div className="flex items-center justify-between pb-3 border-b border-neutral-200/80 dark:border-neutral-800">
+                  <div>
+                    <h4 className="font-bold text-sm text-neutral-900 dark:text-white flex items-center gap-1.5">
+                      <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      Budget Configuration
+                    </h4>
+                    <p className="text-[11px] text-neutral-400 dark:text-neutral-500 font-normal">
+                      Set maximum spend limits and automated reset schedules.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-neutral-800 dark:text-neutral-200 select-none">
+                    <input
+                      type="checkbox"
+                      checked={editDefaultUnlimitedBudget}
+                      onChange={(e) => {
+                        setEditDefaultUnlimitedBudget(e.target.checked);
+                        if (e.target.checked) setEditDefaultMaxBudget('0');
+                      }}
+                      className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span>Unlimited Budget</span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Maximum Budget */}
+                  <div className="space-y-1">
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                      Maximum Budget ($)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-medium">$</span>
+                      <input
+                        type="number"
+                        disabled={editDefaultUnlimitedBudget}
+                        value={editDefaultUnlimitedBudget ? '' : editDefaultMaxBudget}
+                        onChange={(e) => setEditDefaultMaxBudget(e.target.value)}
+                        placeholder={editDefaultUnlimitedBudget ? "Unlimited" : "500"}
+                        className="w-full h-10 pl-7 pr-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-900 dark:text-white disabled:opacity-50 disabled:bg-neutral-100 dark:disabled:bg-neutral-800"
+                      />
+                    </div>
+                    <p className="text-[10px] text-neutral-400">Enter 0 for unlimited hard budget cap.</p>
+                  </div>
+
+                  {/* Soft Budget */}
+                  <div className="space-y-1">
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                      Soft Budget ($)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-medium">$</span>
+                      <input
+                        type="number"
+                        disabled={editDefaultUnlimitedBudget}
+                        value={editDefaultUnlimitedBudget ? '' : editDefaultSoftBudget}
+                        onChange={(e) => setEditDefaultSoftBudget(e.target.value)}
+                        placeholder={editDefaultUnlimitedBudget ? "Unlimited" : "400"}
+                        className="w-full h-10 pl-7 pr-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-900 dark:text-white disabled:opacity-50 disabled:bg-neutral-100 dark:disabled:bg-neutral-800"
+                      />
+                    </div>
+                    <p className="text-[10px] text-neutral-400">Alert triggers at this spend threshold.</p>
+                  </div>
+
+                  {/* Budget Reset Duration */}
+                  <div className="space-y-1">
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                      Budget Reset Duration
+                    </label>
+                    <select
+                      value={editDefaultBudgetReset}
+                      onChange={(e) => setEditDefaultBudgetReset(e.target.value)}
+                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-900 dark:text-white"
+                    >
+                      <option value="Lifetime">Lifetime</option>
+                      <option value="Monthly">Monthly</option>
+                      <option value="Quarterly">Quarterly</option>
+                      <option value="Annual">Annual</option>
+                    </select>
+                    <p className="text-[10px] text-neutral-400">Resets accrued spend counter.</p>
+                  </div>
+                </div>
+
+                {/* Budget Notification Email Tag Container */}
+                <div className="space-y-1.5 pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                  <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                    Budget Notification Email
+                  </label>
+                  <div className="min-h-11 p-2 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-xl flex flex-wrap items-center gap-2">
+                    {editDefaultNotificationEmails.map((email) => (
+                      <span
+                        key={email}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-800 dark:text-neutral-200"
+                      >
+                        {email}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDefaultEmailTag(email)}
+                          className="text-neutral-400 hover:text-neutral-700 dark:hover:text-white transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      type="email"
+                      value={editDefaultEmailInputText}
+                      onChange={(e) => setEditDefaultEmailInputText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
+                          e.preventDefault();
+                          handleAddDefaultEmailTag(editDefaultEmailInputText);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (editDefaultEmailInputText) handleAddDefaultEmailTag(editDefaultEmailInputText);
+                      }}
+                      placeholder="Add email..."
+                      className="flex-1 min-w-[140px] h-7 text-xs bg-transparent border-none focus:outline-none text-neutral-900 dark:text-white placeholder:text-neutral-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-neutral-400 font-medium">
+                    Recipients receive email notifications when Soft Budget or Maximum Budget is reached.
+                  </p>
+                </div>
+              </div>
+
+              {/* Default Assigned Teams */}
+              <div className="space-y-1 relative edit-team-select-dropdown">
+                <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                  Default Assigned Teams
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowEditTeamDropdown(!showEditTeamDropdown)}
+                  className="w-full min-h-[40px] px-3 py-1.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium flex items-center justify-between hover:border-neutral-400 transition-colors"
+                >
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    {editDefaultTeams.length === 0 ? (
+                      <span className="text-neutral-400 italic">Select default teams...</span>
+                    ) : (
+                      editDefaultTeams.map((t) => (
+                        <span
+                          key={t}
+                          className="px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 font-semibold text-[11px] flex items-center gap-1"
+                        >
+                          {t}
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditDefaultTeams(editDefaultTeams.filter((item) => item !== t));
+                            }}
+                            className="hover:text-rose-500 cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </span>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-neutral-400 shrink-0 ml-2" />
+                </button>
+
+                {showEditTeamDropdown && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl p-1 space-y-0.5 animate-fadeIn max-h-48 overflow-y-auto">
+                    {AVAILABLE_TEAMS_LIST.map((teamName) => {
+                      const isSelected = editDefaultTeams.includes(teamName);
+                      return (
+                        <button
+                          key={teamName}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setEditDefaultTeams(editDefaultTeams.filter((item) => item !== teamName));
+                            } else {
+                              setEditDefaultTeams([...editDefaultTeams, teamName]);
+                            }
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between transition-colors ${
+                            isSelected
+                              ? "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-semibold"
+                              : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900"
+                          }`}
+                        >
+                          <span>{teamName}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-purple-600" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between flex-shrink-0 bg-neutral-50/50 dark:bg-neutral-900/50">
+              <SecondaryButton onClick={() => setShowDefaultSettingsModal(false)}>
+                Cancel
+              </SecondaryButton>
+
+              <PrimaryButton
+                onClick={() => {
+                  handleSaveDefaultSettings();
+                  setShowDefaultSettingsModal(false);
+                  toast.success("Default User Settings saved successfully!");
+                }}
+              >
+                Save Changes
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+export default UserManagement;

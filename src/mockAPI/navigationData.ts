@@ -61,12 +61,6 @@ export const getNavigationData = (
       icon: Cpu,
       subItems: [
         {
-          id: "virtual-key",
-          label: "Virtual Key",
-          onClick: () => onNavigate("virtual-key"),
-          active: currentPage === "virtual-key" || currentPage === "virtual-keys",
-        },
-        {
           id: "model-management",
           label: "Model Management",
           onClick: () => onNavigate("model-management"),

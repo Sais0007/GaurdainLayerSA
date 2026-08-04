@@ -260,7 +260,13 @@ const mockAuditLogs: AuditLogEntry[] = [
   { id: "log-5", date: "Jul 20, 2026 11:20:00", user: "hbadmin@yopmail.com", action: "Key Provisioned", ip: "192.168.1.104", status: "Success", description: "Initial Virtual Key generated and assigned to AI Research" },
 ];
 
-export default function VirtualKeyManagement() {
+export interface VirtualKeyManagementProps {
+  hideHeader?: boolean;
+  orgName?: string;
+  orgId?: string;
+}
+
+export function VirtualKeyManagement({ hideHeader = false, orgName, orgId }: VirtualKeyManagementProps) {
   const [keys, setKeys] = useState<VirtualKey[]>(mockVirtualKeys);
   const [viewState, setViewState] = useState<"list" | "detail">("list");
   const [selectedKey, setSelectedKey] = useState<VirtualKey | null>(null);
@@ -366,7 +372,31 @@ export default function VirtualKeyManagement() {
   const [formKeyType, setFormKeyType] = useState<"AI APIs" | "Management" | "Full Access">("AI APIs");
   const [formMaxBudget, setFormMaxBudget] = useState("500");
   const [formSoftBudget, setFormSoftBudget] = useState("400");
-  const [formBudgetCycle, setFormBudgetCycle] = useState("Monthly");
+  const [formBudgetCycle, setFormBudgetCycle] = useState("Lifetime");
+  const [formNotificationEmails, setFormNotificationEmails] = useState<string[]>(["john@company.com"]);
+  const [formEmailInputText, setFormEmailInputText] = useState("");
+
+  const handleAddNotificationEmailTag = (emailStr: string) => {
+    const trimmed = emailStr.trim().toLowerCase();
+    if (trimmed && trimmed.includes("@") && !formNotificationEmails.includes(trimmed)) {
+      setFormNotificationEmails((prev) => [...prev, trimmed]);
+      setFormEmailInputText("");
+    }
+  };
+
+  const handleRemoveNotificationEmailTag = (emailToRemove: string) => {
+    setFormNotificationEmails((prev) => prev.filter((e) => e !== emailToRemove));
+  };
+
+  const getUserDisplayName = (email: string) => {
+    if (!email) return "Super Admin";
+    if (email.includes("superadmin")) return "John Doe";
+    if (email.includes("hbadmin")) return "HB Admin";
+    if (email.includes("alex")) return "Alex Dev";
+    const namePart = email.split("@")[0].replace(".", " ");
+    return namePart.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  };
+
   const [formTpmLimit, setFormTpmLimit] = useState("100000");
   const [formRpmLimit, setFormRpmLimit] = useState("1000");
   const [formExpiryDuration, setFormExpiryDuration] = useState("Never");
@@ -487,7 +517,9 @@ export default function VirtualKeyManagement() {
     setAllModelsSelected(false);
     setFormMaxBudget("500");
     setFormSoftBudget("400");
-    setFormBudgetCycle("Monthly");
+    setFormBudgetCycle("Lifetime");
+    setFormNotificationEmails(["john@company.com"]);
+    setFormEmailInputText("");
     setFormTpmLimit("100000");
     setFormRpmLimit("1000");
     setFormExpiryDuration("Never");
@@ -510,7 +542,9 @@ export default function VirtualKeyManagement() {
     setAllModelsSelected(keyItem.models.includes("All Models"));
     setFormMaxBudget(keyItem.maxBudget.toString());
     setFormSoftBudget((keyItem.maxBudget * 0.8).toString());
-    setFormBudgetCycle("Monthly");
+    setFormBudgetCycle("Lifetime");
+    setFormNotificationEmails(["john@company.com"]);
+    setFormEmailInputText("");
     setFormTpmLimit(keyItem.tpmLimit.toString());
     setFormRpmLimit(keyItem.rpmLimit.toString());
     setFormExpiryDuration(keyItem.expiryDuration);
@@ -874,72 +908,137 @@ export default function VirtualKeyManagement() {
       {/* ========================================================================= */}
       {viewState === "list" || !selectedKey ? (
         <>
-          <PageHeader
-            pageId="virtual-key"
-            action="list"
-          >
-            {/* 1. Search Bar */}
-            <SearchBar
-              value={searchQuery}
-              onChange={(val) => setSearchQuery(val)}
-              placeholder="Search Virtual Keys..."
-            />
-
-            {/* 2. Filter Button */}
-            <IconButton
-              icon={Filter}
-              label="Filter"
-              onClick={() => setShowFilterModal(true)}
-              title="Filter Virtual Keys"
-            />
-
-            {/* 3. Column Selector */}
-            <div className="relative" ref={columnAnchorRef}>
-              <IconButton
-                icon={Columns3}
-                label="Columns"
-                onClick={() => setShowColumnPanel(!showColumnPanel)}
-                title="Customize Table Columns"
+          {!hideHeader ? (
+            <PageHeader
+              pageId="virtual-key"
+              action="list"
+            >
+              {/* 1. Search Bar */}
+              <SearchBar
+                value={searchQuery}
+                onChange={(val) => setSearchQuery(val)}
+                placeholder="Search Virtual Keys..."
               />
-              {showColumnPanel && (
-                <ColumnVisibilityPanel
-                  isOpen={showColumnPanel}
-                  onClose={() => setShowColumnPanel(false)}
-                  anchorRef={columnAnchorRef}
-                  columns={allColumns}
-                  visibleColumns={visibleColumns}
-                  onToggleColumn={toggleColumn}
+
+              {/* 2. Filter Button */}
+              <IconButton
+                icon={Filter}
+                label="Filter"
+                onClick={() => setShowFilterModal(true)}
+                title="Filter Virtual Keys"
+              />
+
+              {/* 3. Column Selector */}
+              <div className="relative" ref={columnAnchorRef}>
+                <IconButton
+                  icon={Columns3}
+                  label="Columns"
+                  onClick={() => setShowColumnPanel(!showColumnPanel)}
+                  title="Customize Table Columns"
                 />
-              )}
+                {showColumnPanel && (
+                  <ColumnVisibilityPanel
+                    isOpen={showColumnPanel}
+                    onClose={() => setShowColumnPanel(false)}
+                    anchorRef={columnAnchorRef}
+                    columns={allColumns}
+                    visibleColumns={visibleColumns}
+                    onToggleColumn={toggleColumn}
+                  />
+                )}
+              </div>
+
+              {/* 4. Export */}
+              <IconButton
+                icon={Download}
+                label="Export"
+                onClick={() => toast.success("Exporting Virtual Keys to CSV...")}
+              />
+
+              {/* 5. Refresh */}
+              <IconButton
+                icon={RefreshCw}
+                label="Refresh"
+                onClick={() => toast.success("Refreshed Virtual Keys list")}
+              />
+
+              {/* 6. Show/Hide Summary Toggle */}
+              <IconButton
+                icon={showSummary ? EyeOff : BarChart3}
+                label={showSummary ? "Hide Summary" : "Show Summary"}
+                onClick={() => setShowSummary(!showSummary)}
+                title={showSummary ? "Hide KPI Summary Cards" : "Show KPI Summary Cards"}
+              />
+
+              {/* 7. Create Virtual Key Primary Button (Last Position) */}
+              <PrimaryButton icon={Plus} onClick={handleOpenCreateModal}>
+                Create Virtual Key
+              </PrimaryButton>
+            </PageHeader>
+          ) : (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 shadow-2xs">
+              <div className="flex items-center gap-2 flex-1">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={(val) => setSearchQuery(val)}
+                  placeholder="Search Virtual Keys..."
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <IconButton
+                  icon={Filter}
+                  label="Filter"
+                  onClick={() => setShowFilterModal(true)}
+                  title="Filter Virtual Keys"
+                />
+
+                <div className="relative" ref={columnAnchorRef}>
+                  <IconButton
+                    icon={Columns3}
+                    label="Columns"
+                    onClick={() => setShowColumnPanel(!showColumnPanel)}
+                    title="Customize Table Columns"
+                  />
+                  {showColumnPanel && (
+                    <ColumnVisibilityPanel
+                      isOpen={showColumnPanel}
+                      onClose={() => setShowColumnPanel(false)}
+                      anchorRef={columnAnchorRef}
+                      columns={allColumns}
+                      visibleColumns={visibleColumns}
+                      onToggleColumn={toggleColumn}
+                    />
+                  )}
+                </div>
+
+                <IconButton
+                  icon={Download}
+                  label="Export"
+                  onClick={() => toast.success("Exporting Virtual Keys to CSV...")}
+                  title="Export Data"
+                />
+
+                <IconButton
+                  icon={RefreshCw}
+                  label="Refresh"
+                  onClick={() => toast.success("Refreshed Virtual Keys list")}
+                  title="Refresh Data"
+                />
+
+                <IconButton
+                  icon={showSummary ? EyeOff : BarChart3}
+                  label={showSummary ? "Hide Summary" : "Show Summary"}
+                  onClick={() => setShowSummary(!showSummary)}
+                  title={showSummary ? "Hide KPI Summary Cards" : "Show KPI Summary Cards"}
+                />
+
+                <PrimaryButton icon={Plus} onClick={handleOpenCreateModal}>
+                  Create Virtual Key
+                </PrimaryButton>
+              </div>
             </div>
-
-            {/* 4. Export */}
-            <IconButton
-              icon={Download}
-              label="Export"
-              onClick={() => toast.success("Exporting Virtual Keys to CSV...")}
-            />
-
-            {/* 5. Refresh */}
-            <IconButton
-              icon={RefreshCw}
-              label="Refresh"
-              onClick={() => toast.success("Refreshed Virtual Keys list")}
-            />
-
-            {/* 6. Show/Hide Summary Toggle */}
-            <IconButton
-              icon={showSummary ? EyeOff : BarChart3}
-              label={showSummary ? "Hide Summary" : "Show Summary"}
-              onClick={() => setShowSummary(!showSummary)}
-              title={showSummary ? "Hide KPI Summary Cards" : "Show KPI Summary Cards"}
-            />
-
-            {/* 7. Create Virtual Key Primary Button (Last Position) */}
-            <PrimaryButton icon={Plus} onClick={handleOpenCreateModal}>
-              Create Virtual Key
-            </PrimaryButton>
-          </PageHeader>
+          )}
 
           {/* Collapsible KPI Summary Cards */}
           {showSummary && (
@@ -1456,7 +1555,10 @@ export default function VirtualKeyManagement() {
                 <div className="min-w-0">
                   <div className="text-neutral-400 font-medium mb-1">Owner</div>
                   <div className="font-semibold text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5 min-w-0">
-                    <span className="truncate" title={selectedKey.owner}>{selectedKey.owner}</span>
+                    <span className="truncate" title={`${getUserDisplayName(selectedKey.owner)} (${selectedKey.owner})`}>
+                      <span className="font-bold text-neutral-900 dark:text-white mr-1">{getUserDisplayName(selectedKey.owner)}</span>
+                      <span className="text-neutral-400 font-normal">({selectedKey.owner})</span>
+                    </span>
                     <button type="button" onClick={() => handleCopyText(selectedKey.ownerId, "Copied successfully!")} title="Copy Owner ID" className="shrink-0 p-0.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded">
                       <Copy className="w-3 h-3 text-neutral-400 hover:text-primary-600 transition-colors" />
                     </button>
@@ -1480,7 +1582,10 @@ export default function VirtualKeyManagement() {
 
                 <div className="min-w-0">
                   <div className="text-neutral-400 font-medium mb-1">Created By</div>
-                  <div className="font-semibold text-neutral-800 dark:text-neutral-200 truncate" title={selectedKey.createdBy}>{selectedKey.createdBy}</div>
+                  <div className="font-semibold text-neutral-800 dark:text-neutral-200 truncate" title={`${getUserDisplayName(selectedKey.createdBy)} (${selectedKey.createdBy})`}>
+                    <span className="font-bold text-neutral-900 dark:text-white mr-1">{getUserDisplayName(selectedKey.createdBy)}</span>
+                    <span className="text-neutral-400 font-normal">({selectedKey.createdBy})</span>
+                  </div>
                 </div>
 
                 <div className="min-w-0">
@@ -1515,11 +1620,11 @@ export default function VirtualKeyManagement() {
             </div>
 
             {/* ========================================================================= */}
-            {/* TAB 1: OVERVIEW                                                           */}
+            {/* TAB 1: OVERVIEW (Timeline Card removed per request)                        */}
             {/* ========================================================================= */}
             {detailTab === "overview" && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
-                <div className="lg:col-span-2 space-y-6">
+              <div className="space-y-6 animate-fadeIn">
+                <div className="space-y-6">
                   
                   {/* Virtual Key Information Card */}
                   <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-4 shadow-2xs">
@@ -1596,40 +1701,6 @@ export default function VirtualKeyManagement() {
                         <div className="flex justify-between"><span className="text-neutral-400">Status:</span> <span className="font-semibold text-emerald-600">Enabled</span></div>
                         <div className="flex justify-between"><span className="text-neutral-400">Rotation Cycle:</span> <span className="font-semibold">Every 90 Days</span></div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Timeline Card */}
-                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-4">
-                  <h3 className="text-sm font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-primary-600" />
-                    Timeline Card (Recent Activity)
-                  </h3>
-
-                  <div className="space-y-4 text-xs">
-                    <div className="border-l-2 border-primary-500 pl-3 space-y-0.5">
-                      <div className="font-semibold text-neutral-900 dark:text-white">API Usage Executed</div>
-                      <div className="text-neutral-500">gpt-4o completion request (2,450 tokens)</div>
-                      <div className="text-[10px] text-neutral-400">Jul 24, 2026 3:26 PM</div>
-                    </div>
-
-                    <div className="border-l-2 border-emerald-500 pl-3 space-y-0.5">
-                      <div className="font-semibold text-neutral-900 dark:text-white">Budget Cap Updated</div>
-                      <div className="text-neutral-500">Cap set to $500.00 by {selectedKey.createdBy}</div>
-                      <div className="text-[10px] text-neutral-400">Jul 22, 2026 6:30 PM</div>
-                    </div>
-
-                    <div className="border-l-2 border-blue-500 pl-3 space-y-0.5">
-                      <div className="font-semibold text-neutral-900 dark:text-white">Security Policies Attached</div>
-                      <div className="text-neutral-500">Rate Limiting & IP Whitelist assigned</div>
-                      <div className="text-[10px] text-neutral-400">Jul 21, 2026 10:15 AM</div>
-                    </div>
-
-                    <div className="border-l-2 border-purple-500 pl-3 space-y-0.5">
-                      <div className="font-semibold text-neutral-900 dark:text-white">Key Created</div>
-                      <div className="text-neutral-500">Provisioned for {selectedKey.organization}</div>
-                      <div className="text-[10px] text-neutral-400">{selectedKey.createdDate}</div>
                     </div>
                   </div>
                 </div>
@@ -2266,96 +2337,128 @@ export default function VirtualKeyManagement() {
               </div>
 
               {/* SECTION 3 — BUDGET CONFIGURATION */}
-              <div className="bg-neutral-50/50 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800 rounded-xl p-4 space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
-                  <DollarSign className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                  <div>
-                    <h4 className="font-bold text-sm text-neutral-900 dark:text-white">
-                      Budget Configuration
-                    </h4>
-                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                      Set maximum spend limits and automated reset schedules.
-                    </p>
-                  </div>
+              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-4 shadow-2xs">
+                <div className="pb-3 border-b border-neutral-200/80 dark:border-neutral-800">
+                  <h4 className="font-bold text-sm text-neutral-900 dark:text-white flex items-center gap-1.5">
+                    <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    Budget Configuration
+                  </h4>
+                  <p className="text-[11px] text-neutral-400 dark:text-neutral-500 font-normal">
+                    Set maximum spend limits and automated reset schedules.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Maximum Budget */}
                   <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
                       Maximum Budget ($)
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-semibold">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-medium">$</span>
                       <input
                         type="number"
                         min="0"
                         value={formMaxBudget}
                         onChange={(e) => setFormMaxBudget(e.target.value)}
                         placeholder="500"
-                        className={`w-full h-10 pl-7 pr-3 bg-white dark:bg-neutral-950 border rounded-lg text-xs font-mono font-semibold text-neutral-900 dark:text-white focus:outline-none focus:ring-2 ${
+                        className={`w-full h-10 pl-7 pr-3 bg-white dark:bg-neutral-950 border rounded-lg text-xs font-medium text-neutral-900 dark:text-white focus:outline-none focus:ring-2 ${
                           isBudgetInvalid ? "border-rose-500 focus:ring-rose-500/20" : "border-neutral-300 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500/20"
                         }`}
                       />
                     </div>
                     {isBudgetInvalid ? (
-                      <p className="text-rose-500 text-[11px]">Must be a non-negative number.</p>
+                      <p className="text-rose-500 text-[10px]">Must be a non-negative number.</p>
                     ) : (
-                      <p className="text-[11px] text-neutral-400">Enter 0 for unlimited hard budget cap.</p>
+                      <p className="text-[10px] text-neutral-400">Enter 0 for unlimited hard budget cap.</p>
                     )}
                   </div>
 
                   {/* Soft Budget */}
                   <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
                       Soft Budget ($)
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-semibold">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-medium">$</span>
                       <input
                         type="number"
                         min="0"
                         value={formSoftBudget}
                         onChange={(e) => setFormSoftBudget(e.target.value)}
                         placeholder="400"
-                        className={`w-full h-10 pl-7 pr-3 bg-white dark:bg-neutral-950 border rounded-lg text-xs font-mono font-semibold text-neutral-900 dark:text-white focus:outline-none focus:ring-2 ${
+                        className={`w-full h-10 pl-7 pr-3 bg-white dark:bg-neutral-950 border rounded-lg text-xs font-medium text-neutral-900 dark:text-white focus:outline-none focus:ring-2 ${
                           isSoftBudgetInvalid ? "border-rose-500 focus:ring-rose-500/20" : "border-neutral-300 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500/20"
                         }`}
                       />
                     </div>
                     {isSoftBudgetInvalid ? (
-                      <p className="text-rose-500 text-[11px]">Soft budget cannot exceed maximum budget.</p>
+                      <p className="text-rose-500 text-[10px]">Soft budget cannot exceed maximum budget.</p>
                     ) : (
-                      <p className="text-[11px] text-neutral-400">Alert triggers at this spend threshold.</p>
+                      <p className="text-[10px] text-neutral-400">Alert triggers at this spend threshold.</p>
                     )}
                   </div>
 
-                  {/* Budget Reset Cycle */}
+                  {/* Budget Reset Duration */}
                   <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Budget Reset Cycle
+                    <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                      Budget Reset Duration
                     </label>
                     <select
                       value={formBudgetCycle}
                       onChange={(e) => setFormBudgetCycle(e.target.value)}
                       className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-900 dark:text-white focus:outline-none focus:border-primary-500"
                     >
-                      <option value="Daily">Daily</option>
-                      <option value="Weekly">Weekly</option>
+                      <option value="Lifetime">Lifetime</option>
                       <option value="Monthly">Monthly</option>
                       <option value="Quarterly">Quarterly</option>
-                      <option value="Yearly">Yearly</option>
-                      <option value="Never">Never (One-Time Cap)</option>
+                      <option value="Annual">Annual</option>
                     </select>
-                    <p className="text-[11px] text-neutral-400">Resets accrued spend counter.</p>
+                    <p className="text-[10px] text-neutral-400">Resets accrued spend counter.</p>
                   </div>
                 </div>
 
-                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-lg flex items-center gap-2 text-amber-800 dark:text-amber-300 text-[11px]">
-                  <HelpCircle className="w-4 h-4 shrink-0 text-amber-600" />
-                  <span>
-                    Soft budget alerts notify team owners via webhooks prior to API requests being hard-throttled at 100% cap.
-                  </span>
+                {/* Budget Notification Email Tag Container */}
+                <div className="space-y-1.5 pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                  <label className="block font-semibold text-xs text-neutral-800 dark:text-neutral-200">
+                    Budget Notification Email
+                  </label>
+                  <div className="min-h-11 p-2 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-xl flex flex-wrap items-center gap-2">
+                    {formNotificationEmails.map((email) => (
+                      <span
+                        key={email}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-800 dark:text-neutral-200"
+                      >
+                        {email}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveNotificationEmailTag(email)}
+                          className="text-neutral-400 hover:text-neutral-700 dark:hover:text-white transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      type="email"
+                      value={formEmailInputText}
+                      onChange={(e) => setFormEmailInputText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
+                          e.preventDefault();
+                          handleAddNotificationEmailTag(formEmailInputText);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (formEmailInputText) handleAddNotificationEmailTag(formEmailInputText);
+                      }}
+                      placeholder="Add email..."
+                      className="flex-1 min-w-[140px] h-7 text-xs bg-transparent border-none focus:outline-none text-neutral-900 dark:text-white placeholder:text-neutral-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-neutral-400 font-medium">
+                    Recipients receive email notifications when Soft Budget or Maximum Budget is reached.
+                  </p>
                 </div>
               </div>
 
@@ -2658,3 +2761,5 @@ export default function VirtualKeyManagement() {
     </div>
   );
 }
+
+export default VirtualKeyManagement;
