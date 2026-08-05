@@ -54,6 +54,7 @@ import {
 } from "./hb/listing";
 
 // --- Model Interface ---
+// --- Model Interface ---
 export interface ModelItem {
   id: string;
   modelId: string;
@@ -63,39 +64,43 @@ export interface ModelItem {
   description?: string;
   createdBy: string;
   createdOn: string;
-  inputCost: number;
-  outputCost: number;
   status: "Active" | "Paused" | "Disabled";
   healthStatus: "Healthy" | "Unhealthy" | "None";
   errorDetails?: string;
   lastCheck: string;
   lastSuccess: string;
-  // Provider Config
+  // Credential & Provider Endpoint Config
+  credentialRef: string;
   apiEndpoint?: string;
   resourceEndpoint?: string;
   deploymentId?: string;
   apiVersion?: string;
   apiKeySecret?: string;
   orgId?: string;
-  // Budget & Limits
-  maxBudget: number;
-  softBudget: number;
-  currentSpend: number;
-  resetCycle: "Daily" | "Weekly" | "Monthly" | "Quarterly" | "Yearly" | "Never";
-  notificationEmails?: string;
-  tpmLimit: number;
-  rpmLimit: number;
-  rpdLimit: number;
-  concurrentRequests: number;
-  // Advanced Config
-  temperature: number;
-  timeout: number;
-  maxRetries: number;
-  maxTokens: number;
-  streaming: boolean;
-  promptCaching: boolean;
-  providerMetadata?: string;
+  // Dependencies for delete verification
+  dependentOrgs?: string[];
+  dependentTeams?: string[];
+  dependentKeys?: string[];
 }
+
+// Mock Registered KeyVault Credentials
+const MOCK_CREDENTIAL_OPTIONS = [
+  { id: "kv-openai-primary-key", name: "kv-openai-primary-key (OpenAI - Production)" },
+  { id: "kv-azure-secret-ref-882", name: "kv-azure-secret-ref-882 (Azure AI - East US)" },
+  { id: "kv-anthropic-prod-key", name: "kv-anthropic-prod-key (Anthropic - Core)" },
+  { id: "kv-deepseek-prod", name: "kv-deepseek-prod (DeepSeek Gateway)" },
+  { id: "kv-google-gemini-key", name: "kv-google-gemini-key (Google Vertex AI)" },
+];
+
+const PROVIDER_PRESET_MODELS: Record<string, string[]> = {
+  OpenAI: ["gpt-4o", "gpt-4o-mini", "o1-preview", "text-embedding-3-large"],
+  Anthropic: ["claude-3-5-sonnet-20241022", "claude-3-haiku-20240307", "claude-3-opus-20240229"],
+  "Azure AI": ["azure-gpt-4o", "azure-gpt-4o-mini", "azure-gpt-35-turbo"],
+  "Google Gemini": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"],
+  DeepSeek: ["deepseek-r1", "deepseek-v3", "deepseek-coder"],
+  Ollama: ["llama-3.3-70b", "mistral-large", "qwen-2.5-coder"],
+  Custom: ["custom-model-01"]
+};
 
 // Mock Initial Models Data
 const mockModelsData: ModelItem[] = [
@@ -108,33 +113,19 @@ const mockModelsData: ModelItem[] = [
     description: "Enterprise Azure OpenAI GPT-4o instance hosted in East US region",
     createdBy: "hbadmin@yopmail.com",
     createdOn: "Jul 18, 2026",
-    inputCost: 2.50,
-    outputCost: 10.00,
     status: "Active",
     healthStatus: "Healthy",
     errorDetails: "--",
     lastCheck: "Jul 29, 2026 16:40",
     lastSuccess: "Jul 29, 2026 16:40",
+    credentialRef: "kv-azure-secret-ref-882",
     resourceEndpoint: "https://hb-gateway-eastus.openai.azure.com",
     deploymentId: "gpt-4o-prod-01",
     apiVersion: "2024-02-15-preview",
     apiKeySecret: "kv-azure-secret-ref-882",
-    maxBudget: 15000,
-    softBudget: 12000,
-    currentSpend: 4850.25,
-    resetCycle: "Monthly",
-    notificationEmails: "ops@company.com",
-    tpmLimit: 1000000,
-    rpmLimit: 10000,
-    rpdLimit: 500000,
-    concurrentRequests: 100,
-    temperature: 0.7,
-    timeout: 30,
-    maxRetries: 3,
-    maxTokens: 4096,
-    streaming: true,
-    promptCaching: true,
-    providerMetadata: '{\n  "region": "eastus",\n  "sku": "Standard"\n}'
+    dependentOrgs: ["HB Enterprise"],
+    dependentTeams: ["AI Research", "Platform Engineering"],
+    dependentKeys: ["vk-finance-lead", "vk-dev-core"]
   },
   {
     id: "mod-102",
@@ -145,29 +136,17 @@ const mockModelsData: ModelItem[] = [
     description: "Anthropic flagship model for reasoning, coding, and context comprehension",
     createdBy: "sarah.connor@hb.com",
     createdOn: "Jul 16, 2026",
-    inputCost: 3.00,
-    outputCost: 15.00,
     status: "Active",
     healthStatus: "Healthy",
     errorDetails: "--",
     lastCheck: "Jul 29, 2026 16:38",
     lastSuccess: "Jul 29, 2026 16:38",
+    credentialRef: "kv-anthropic-prod-key",
     apiEndpoint: "https://api.anthropic.com/v1",
     apiKeySecret: "kv-anthropic-prod-key",
-    maxBudget: 10000,
-    softBudget: 8000,
-    currentSpend: 2310.50,
-    resetCycle: "Monthly",
-    tpmLimit: 800000,
-    rpmLimit: 8000,
-    rpdLimit: 400000,
-    concurrentRequests: 80,
-    temperature: 0.5,
-    timeout: 45,
-    maxRetries: 2,
-    maxTokens: 8192,
-    streaming: true,
-    promptCaching: true
+    dependentOrgs: ["HB Enterprise"],
+    dependentTeams: ["AI Research"],
+    dependentKeys: ["vk-sarah-lead"]
   },
   {
     id: "mod-103",
@@ -178,29 +157,17 @@ const mockModelsData: ModelItem[] = [
     description: "Open reasoning model optimized for mathematical logic and complex step analysis",
     createdBy: "alex.dev@hb.com",
     createdOn: "Jul 20, 2026",
-    inputCost: 0.55,
-    outputCost: 2.19,
     status: "Active",
     healthStatus: "Unhealthy",
     errorDetails: "Authentication Error: 401",
     lastCheck: "Jul 29, 2026 16:45",
     lastSuccess: "Jul 28, 2026 18:30",
+    credentialRef: "kv-deepseek-prod",
     apiEndpoint: "https://api.deepseek.com/v1",
     apiKeySecret: "kv-deepseek-expired-token",
-    maxBudget: 3000,
-    softBudget: 2400,
-    currentSpend: 420.00,
-    resetCycle: "Monthly",
-    tpmLimit: 400000,
-    rpmLimit: 4000,
-    rpdLimit: 200000,
-    concurrentRequests: 40,
-    temperature: 0.2,
-    timeout: 60,
-    maxRetries: 3,
-    maxTokens: 4096,
-    streaming: true,
-    promptCaching: false
+    dependentOrgs: [],
+    dependentTeams: [],
+    dependentKeys: []
   },
   {
     id: "mod-104",
@@ -211,30 +178,18 @@ const mockModelsData: ModelItem[] = [
     description: "Multimodal standard model for core organization workflows and chat tools",
     createdBy: "superadmin@spinecloudiq.com",
     createdOn: "Jul 15, 2026",
-    inputCost: 2.50,
-    outputCost: 10.00,
     status: "Active",
     healthStatus: "Healthy",
     errorDetails: "--",
     lastCheck: "Jul 29, 2026 16:40",
     lastSuccess: "Jul 29, 2026 16:40",
+    credentialRef: "kv-openai-primary-key",
     apiEndpoint: "https://api.openai.com/v1",
     orgId: "org-spinecloudiq-prod",
     apiKeySecret: "kv-openai-primary-key",
-    maxBudget: 25000,
-    softBudget: 20000,
-    currentSpend: 11450.80,
-    resetCycle: "Monthly",
-    tpmLimit: 1500000,
-    rpmLimit: 15000,
-    rpdLimit: 1000000,
-    concurrentRequests: 150,
-    temperature: 0.7,
-    timeout: 30,
-    maxRetries: 3,
-    maxTokens: 4096,
-    streaming: true,
-    promptCaching: true
+    dependentOrgs: ["HB Enterprise"],
+    dependentTeams: ["Product & Design"],
+    dependentKeys: []
   },
   {
     id: "mod-105",
@@ -245,83 +200,16 @@ const mockModelsData: ModelItem[] = [
     description: "Self-hosted Ollama server running Llama 3.3 70B on internal GPU cluster",
     createdBy: "michael.scott@hb.com",
     createdOn: "Jul 22, 2026",
-    inputCost: 0.00,
-    outputCost: 0.00,
     status: "Paused",
     healthStatus: "None",
     errorDetails: "Connection Timeout",
     lastCheck: "Jul 29, 2026 15:10",
     lastSuccess: "Jul 27, 2026 12:00",
+    credentialRef: "kv-ollama-local-key",
     apiEndpoint: "http://ollama-gpu-cluster.internal:11434",
-    maxBudget: 0,
-    softBudget: 0,
-    currentSpend: 0.00,
-    resetCycle: "Never",
-    tpmLimit: 500000,
-    rpmLimit: 5000,
-    rpdLimit: 250000,
-    concurrentRequests: 20,
-    temperature: 0.7,
-    timeout: 90,
-    maxRetries: 1,
-    maxTokens: 4096,
-    streaming: true,
-    promptCaching: false
-  }
-];
-
-// Provider Catalog for Access Assignment Section
-const ALL_PROVIDER_CATALOG = [
-  {
-    id: "openai",
-    name: "OpenAI",
-    models: [
-      { id: "gpt-4o", name: "GPT-4o", desc: "Flagship multimodal intelligence" },
-      { id: "gpt-4-mini", name: "GPT-4o Mini", desc: "Lightweight, fast inference" },
-      { id: "o1-preview", name: "o1 Preview", desc: "Advanced reasoning model" },
-      { id: "text-embedding-3", name: "Text Embedding 3", desc: "High-density vector embeddings" }
-    ]
-  },
-  {
-    id: "anthropic",
-    name: "Anthropic",
-    models: [
-      { id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet", desc: "Best-in-class coding & analysis" },
-      { id: "claude-3-haiku", name: "Claude 3 Haiku", desc: "Ultra-fast response model" },
-      { id: "claude-3-opus", name: "Claude 3 Opus", desc: "Deep complex reasoning" }
-    ]
-  },
-  {
-    id: "azure",
-    name: "Azure OpenAI",
-    models: [
-      { id: "azure-gpt-4o", name: "Azure GPT-4o", desc: "Enterprise isolated endpoint" },
-      { id: "azure-gpt-35-turbo", name: "Azure GPT-3.5 Turbo", desc: "Cost efficient deployment" }
-    ]
-  },
-  {
-    id: "deepseek",
-    name: "DeepSeek",
-    models: [
-      { id: "deepseek-r1", name: "DeepSeek R1", desc: "Open-weights reasoning" },
-      { id: "deepseek-v3", name: "DeepSeek V3", desc: "General language understanding" }
-    ]
-  },
-  {
-    id: "google",
-    name: "Google Gemini",
-    models: [
-      { id: "gemini-1-5-pro", name: "Gemini 1.5 Pro", desc: "1M token context window" },
-      { id: "gemini-1-5-flash", name: "Gemini 1.5 Flash", desc: "High speed multimodal" }
-    ]
-  },
-  {
-    id: "ollama",
-    name: "Ollama (Self-Hosted)",
-    models: [
-      { id: "llama-3-3-70b", name: "Llama 3.3 70B", desc: "Private local GPU cluster" },
-      { id: "mistral-large", name: "Mistral Large", desc: "On-premise European model" }
-    ]
+    dependentOrgs: [],
+    dependentTeams: [],
+    dependentKeys: []
   }
 ];
 
@@ -338,10 +226,9 @@ interface AuditLogEntry {
 
 const mockAuditLogs: AuditLogEntry[] = [
   { id: "log-1", date: "Jul 29, 2026 16:40:12", user: "hbadmin@yopmail.com", action: "Model Test Call", ip: "192.168.1.104", status: "Success", description: "Executed health check verification probe (120ms latency)" },
-  { id: "log-2", date: "Jul 29, 2026 16:38:05", user: "sarah.connor@hb.com", action: "Config Update", ip: "10.0.4.18", status: "Success", description: "Updated rate limits (TPM: 800,000, RPM: 8,000)" },
+  { id: "log-2", date: "Jul 29, 2026 16:38:05", user: "sarah.connor@hb.com", action: "Config Update", ip: "10.0.4.18", status: "Success", description: "Updated provider credentials" },
   { id: "log-3", date: "Jul 28, 2026 18:30:00", user: "alex.dev@hb.com", action: "Auth Failure", ip: "172.16.0.42", status: "Failed", description: "API Key rejected by upstream DeepSeek gateway (401 Unauthorized)" },
-  { id: "log-4", date: "Jul 27, 2026 14:15:22", user: "system-auto", action: "Budget Sync", ip: "Internal Gateway", status: "Success", description: "Evaluated budget threshold (32.3% of $15,000.00 cap)" },
-  { id: "log-5", date: "Jul 25, 2026 10:00:00", user: "superadmin@spinecloudiq.com", action: "Model Mapped", ip: "10.0.2.1", status: "Success", description: "Initial model endpoint provisioned and assigned to HB Enterprise" }
+  { id: "log-4", date: "Jul 25, 2026 10:00:00", user: "superadmin@spinecloudiq.com", action: "Model Registered", ip: "10.0.2.1", status: "Success", description: "Initial model registered in platform registry" }
 ];
 
 export interface ModelManagementProps {
@@ -391,10 +278,10 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
     provider: true,
     name: true,
     alias: true,
-    createdBy: true,
-    createdOn: true,
-    cost: true,
+    credential: true,
     status: true,
+    lastSuccess: true,
+    createdOn: true,
   });
 
   // Modal Dialog States
@@ -404,7 +291,7 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
   const [targetModel, setTargetModel] = useState<ModelItem | null>(null);
 
   // View Model Tab State
-  const [detailTab, setDetailTab] = useState<"overview" | "configuration" | "usage" | "logs">("overview");
+  const [detailTab, setDetailTab] = useState<"overview" | "configuration" | "logs">("overview");
   const [logsSearchQuery, setLogsSearchQuery] = useState("");
   const [logsActionFilter, setLogsActionFilter] = useState("All");
 
@@ -415,46 +302,15 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
   const [formDescription, setFormDescription] = useState("");
   const [formStatus, setFormStatus] = useState<ModelItem["status"]>("Active");
 
-  // Dynamic Provider Config Fields
+  // Credential Selection Form State
+  const [formCredentialMode, setFormCredentialMode] = useState<"existing" | "new">("existing");
+  const [formCredentialRef, setFormCredentialRef] = useState("kv-openai-primary-key");
   const [formApiEndpoint, setFormApiEndpoint] = useState("");
   const [formResourceEndpoint, setFormResourceEndpoint] = useState("");
   const [formDeploymentId, setFormDeploymentId] = useState("");
   const [formApiVersion, setFormApiVersion] = useState("");
   const [formApiKeySecret, setFormApiKeySecret] = useState("");
   const [formOrgId, setFormOrgId] = useState("");
-
-  // Provider-First Access Assignment State
-  const [selectedProviderModels, setSelectedProviderModels] = useState<Record<string, string[]>>({
-    openai: ["gpt-4o", "gpt-4-mini"],
-    anthropic: ["claude-3-5-sonnet"]
-  });
-  const [assignmentSearch, setAssignmentSearch] = useState("");
-  const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({
-    openai: true,
-    anthropic: true,
-    azure: false
-  });
-
-  // Budget Config
-  const [formMaxBudget, setFormMaxBudget] = useState("10000");
-  const [formSoftBudget, setFormSoftBudget] = useState("8000");
-  const [formNotificationEmails, setFormNotificationEmails] = useState("admin@company.com");
-  const [formResetCycle, setFormResetCycle] = useState<ModelItem["resetCycle"]>("Monthly");
-
-  // Rate Limits
-  const [formTpm, setFormTpm] = useState("500000");
-  const [formRpm, setFormRpm] = useState("5000");
-  const [formRpd, setFormRpd] = useState("250000");
-  const [formConcurrentRequests, setFormConcurrentRequests] = useState("50");
-
-  // Advanced Config
-  const [formTemperature, setFormTemperature] = useState(0.7);
-  const [formTimeout, setFormTimeout] = useState(30);
-  const [formMaxRetries, setFormMaxRetries] = useState(3);
-  const [formMaxTokens, setFormMaxTokens] = useState(4096);
-  const [formStreaming, setFormStreaming] = useState(true);
-  const [formPromptCaching, setFormPromptCaching] = useState(true);
-  const [formProviderMetadata, setFormProviderMetadata] = useState("");
 
   const [formTouched, setFormTouched] = useState(false);
 
@@ -551,27 +407,14 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
     setFormAlias("");
     setFormDescription("");
     setFormStatus("Active");
+    setFormCredentialMode("existing");
+    setFormCredentialRef("kv-openai-primary-key");
     setFormApiEndpoint("https://api.openai.com/v1");
     setFormResourceEndpoint("");
     setFormDeploymentId("");
     setFormApiVersion("");
-    setFormApiKeySecret("kv-openai-secret");
+    setFormApiKeySecret("");
     setFormOrgId("");
-    setFormMaxBudget("10000");
-    setFormSoftBudget("8000");
-    setFormNotificationEmails("admin@company.com");
-    setFormResetCycle("Monthly");
-    setFormTpm("500000");
-    setFormRpm("5000");
-    setFormRpd("250000");
-    setFormConcurrentRequests("50");
-    setFormTemperature(0.7);
-    setFormTimeout(30);
-    setFormMaxRetries(3);
-    setFormMaxTokens(4096);
-    setFormStreaming(true);
-    setFormPromptCaching(true);
-    setFormProviderMetadata("");
     setFormTouched(false);
     setViewState("form");
   };
@@ -585,27 +428,14 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
     setFormAlias(model.alias);
     setFormDescription(model.description || "");
     setFormStatus(model.status);
+    setFormCredentialMode(model.credentialRef ? "existing" : "new");
+    setFormCredentialRef(model.credentialRef || "kv-openai-primary-key");
     setFormApiEndpoint(model.apiEndpoint || "");
     setFormResourceEndpoint(model.resourceEndpoint || "");
     setFormDeploymentId(model.deploymentId || "");
     setFormApiVersion(model.apiVersion || "");
     setFormApiKeySecret(model.apiKeySecret || "");
     setFormOrgId(model.orgId || "");
-    setFormMaxBudget(model.maxBudget.toString());
-    setFormSoftBudget(model.softBudget.toString());
-    setFormNotificationEmails(model.notificationEmails || "");
-    setFormResetCycle(model.resetCycle);
-    setFormTpm(model.tpmLimit.toString());
-    setFormRpm(model.rpmLimit.toString());
-    setFormRpd(model.rpdLimit.toString());
-    setFormConcurrentRequests(model.concurrentRequests.toString());
-    setFormTemperature(model.temperature);
-    setFormTimeout(model.timeout);
-    setFormMaxRetries(model.maxRetries);
-    setFormMaxTokens(model.maxTokens);
-    setFormStreaming(model.streaming);
-    setFormPromptCaching(model.promptCaching);
-    setFormProviderMetadata(model.providerMetadata || "");
     setFormTouched(false);
     setViewState("form");
   };
@@ -618,6 +448,8 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
       return;
     }
 
+    const selectedCredential = formCredentialMode === "existing" ? formCredentialRef : (formApiKeySecret || "kv-custom-secret-key");
+
     if (isEditMode && selectedModel) {
       const updatedModel: ModelItem = {
         ...selectedModel,
@@ -626,27 +458,13 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
         alias: formAlias.trim(),
         description: formDescription.trim(),
         status: formStatus,
+        credentialRef: selectedCredential,
         apiEndpoint: formApiEndpoint,
         resourceEndpoint: formResourceEndpoint,
         deploymentId: formDeploymentId,
         apiVersion: formApiVersion,
         apiKeySecret: formApiKeySecret,
         orgId: formOrgId,
-        maxBudget: parseFloat(formMaxBudget) || 0,
-        softBudget: parseFloat(formSoftBudget) || 0,
-        notificationEmails: formNotificationEmails,
-        resetCycle: formResetCycle,
-        tpmLimit: parseInt(formTpm) || 500000,
-        rpmLimit: parseInt(formRpm) || 5000,
-        rpdLimit: parseInt(formRpd) || 250000,
-        concurrentRequests: parseInt(formConcurrentRequests) || 50,
-        temperature: formTemperature,
-        timeout: formTimeout,
-        maxRetries: formMaxRetries,
-        maxTokens: formMaxTokens,
-        streaming: formStreaming,
-        promptCaching: formPromptCaching,
-        providerMetadata: formProviderMetadata
       };
 
       setModels((prev) => prev.map((m) => (m.id === selectedModel.id ? updatedModel : m)));
@@ -664,40 +482,26 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
         description: formDescription.trim(),
         createdBy: "hbadmin@yopmail.com",
         createdOn: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
-        inputCost: 2.00,
-        outputCost: 8.00,
         status: formStatus,
         healthStatus: "Healthy",
         errorDetails: "--",
         lastCheck: "Just now",
         lastSuccess: "Just now",
+        credentialRef: selectedCredential,
         apiEndpoint: formApiEndpoint,
         resourceEndpoint: formResourceEndpoint,
         deploymentId: formDeploymentId,
         apiVersion: formApiVersion,
         apiKeySecret: formApiKeySecret,
         orgId: formOrgId,
-        maxBudget: parseFloat(formMaxBudget) || 0,
-        softBudget: parseFloat(formSoftBudget) || 0,
-        currentSpend: 0.00,
-        resetCycle: formResetCycle,
-        notificationEmails: formNotificationEmails,
-        tpmLimit: parseInt(formTpm) || 500000,
-        rpmLimit: parseInt(formRpm) || 5000,
-        rpdLimit: parseInt(formRpd) || 250000,
-        concurrentRequests: parseInt(formConcurrentRequests) || 50,
-        temperature: formTemperature,
-        timeout: formTimeout,
-        maxRetries: formMaxRetries,
-        maxTokens: formMaxTokens,
-        streaming: formStreaming,
-        promptCaching: formPromptCaching,
-        providerMetadata: formProviderMetadata
+        dependentOrgs: [],
+        dependentTeams: [],
+        dependentKeys: []
       };
 
       setModels((prev) => [newModel, ...prev]);
       setSelectedModel(newModel);
-      toast.success(`Model "${newModel.name}" created successfully!`);
+      toast.success(`Model "${newModel.name}" registered successfully!`);
       setViewState("detail");
     }
   };
@@ -869,10 +673,10 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
                       { key: "provider", label: "Provider" },
                       { key: "name", label: "Model Name" },
                       { key: "alias", label: "Model Alias" },
-                      { key: "createdBy", label: "Created By" },
-                      { key: "createdOn", label: "Created On" },
-                      { key: "cost", label: "Cost (USD)" },
+                      { key: "credential", label: "Credential" },
                       { key: "status", label: "Status" },
+                      { key: "lastSuccess", label: "Last Success" },
+                      { key: "createdOn", label: "Created Date" },
                     ]}
                     visibleColumns={visibleColumns}
                     onChangeColumnVisibility={(key, isVisible) =>
@@ -884,10 +688,10 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
                         provider: true,
                         name: true,
                         alias: true,
-                        createdBy: true,
-                        createdOn: true,
-                        cost: true,
+                        credential: true,
                         status: true,
+                        lastSuccess: true,
+                        createdOn: true,
                       })
                     }
                     onClose={() => setShowColumnPanel(false)}
@@ -1018,10 +822,10 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
                         </th>
                       )}
                       {visibleColumns.alias && <th className="py-3 px-4">Model Alias</th>}
-                      {visibleColumns.createdBy && <th className="py-3 px-4">Created By</th>}
-                      {visibleColumns.createdOn && <th className="py-3 px-4">Created On</th>}
-                      {visibleColumns.cost && <th className="py-3 px-4">Cost (USD)</th>}
+                      {visibleColumns.credential && <th className="py-3 px-4">Credential Reference</th>}
                       {visibleColumns.status && <th className="py-3 px-4">Status</th>}
+                      {visibleColumns.lastSuccess && <th className="py-3 px-4">Last Success</th>}
+                      {visibleColumns.createdOn && <th className="py-3 px-4">Created Date</th>}
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -1109,27 +913,13 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
                               </td>
                             )}
 
-                            {/* Created By */}
-                            {visibleColumns.createdBy && (
-                              <td className="py-3.5 px-4 text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
-                                {item.createdBy}
-                              </td>
-                            )}
-
-                            {/* Created On */}
-                            {visibleColumns.createdOn && (
-                              <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">
-                                {item.createdOn}
-                              </td>
-                            )}
-
-                            {/* Cost */}
-                            {visibleColumns.cost && (
-                              <td className="py-3.5 px-4 whitespace-nowrap">
-                                <div className="text-[11px]">
-                                  <div>Input: <span className="font-semibold font-mono">${item.inputCost.toFixed(2)}</span></div>
-                                  <div className="text-neutral-400">Output: <span className="font-semibold font-mono">${item.outputCost.toFixed(2)}</span></div>
-                                </div>
+                            {/* Credential Reference */}
+                            {visibleColumns.credential && (
+                              <td className="py-3.5 px-4 font-mono text-[11px] text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
+                                  <KeyRound className="w-3 h-3 text-amber-500" />
+                                  {item.credentialRef || item.apiKeySecret || "kv-default-key"}
+                                </span>
                               </td>
                             )}
 
@@ -1137,6 +927,20 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
                             {visibleColumns.status && (
                               <td className="py-3.5 px-4 whitespace-nowrap">
                                 {renderStatusBadge(item.status)}
+                              </td>
+                            )}
+
+                            {/* Last Success */}
+                            {visibleColumns.lastSuccess && (
+                              <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap font-mono text-[11px]">
+                                {item.lastSuccess || "Just now"}
+                              </td>
+                            )}
+
+                            {/* Created On */}
+                            {visibleColumns.createdOn && (
+                              <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">
+                                {item.createdOn}
                               </td>
                             )}
 
@@ -1327,10 +1131,12 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
 
       {/* ========================================================================= */}
       {/* VIEW 2: DEDICATED ADD / EDIT MODEL PAGE (NOT A MODAL)                      */}
+{/* ========================================================================= */}
+      {/* VIEW 2: ADD / EDIT MODEL PAGE (SUPER ADMIN MODEL REGISTRY)                 */}
       {/* ========================================================================= */}
       {viewState === "form" && (
-        <div className="space-y-6 animate-fadeIn pb-12">
-          {/* Back Navigation Header */}
+        <div className="space-y-6 animate-fadeIn pb-12 max-w-4xl mx-auto">
+          {/* Back Navigation */}
           <div className="flex items-center justify-between">
             <button
               type="button"
@@ -1349,18 +1155,22 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
           </div>
 
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">
+            <h1 className="text-xl font-bold text-neutral-900 dark:text-white tracking-tight">
               {isEditMode ? "Edit Model" : "Add Model"}
             </h1>
+            <p className="text-xs text-neutral-500 mt-1">
+              Register AI provider models to make them available across your platform gateway.
+            </p>
           </div>
 
-          <form onSubmit={(e) => { e.preventDefault(); handleSaveModelSubmit(); }} className="space-y-6 w-full max-w-7xl mx-auto">
+          <form onSubmit={(e) => { e.preventDefault(); handleSaveModelSubmit(); }} className="space-y-6">
             
-            {/* 1. Basic Information (Plain label title without 'Section 1') */}
+            {/* 1. Basic Model Information */}
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
-              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800">
-                <h3 className="font-bold text-base text-neutral-900 dark:text-white">
-                  Basic Information
+              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+                <h3 className="font-bold text-sm text-neutral-900 dark:text-white flex items-center gap-2">
+                  <Cpu className="w-4 h-4 text-primary-600" />
+                  Basic Model Information
                 </h3>
               </div>
 
@@ -1372,7 +1182,15 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
                   </label>
                   <select
                     value={formProvider}
-                    onChange={(e) => setFormProvider(e.target.value as ModelItem["provider"])}
+                    onChange={(e) => {
+                      const newProv = e.target.value as ModelItem["provider"];
+                      setFormProvider(newProv);
+                      const presets = PROVIDER_PRESET_MODELS[newProv];
+                      if (presets && presets.length > 0 && !formName) {
+                        setFormName(presets[0]);
+                        setFormAlias(presets[0]);
+                      }
+                    }}
                     className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="OpenAI">OpenAI</option>
@@ -1385,20 +1203,52 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
                   </select>
                 </div>
 
-                {/* Model Name */}
+                {/* Model Selection / Custom Model Name */}
                 <div className="space-y-1.5">
                   <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
                     Model Name <span className="text-rose-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder="e.g. Azure OpenAI GPT-4o"
-                    className={`w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 ${
-                      formTouched && !formName.trim() ? "border-rose-500 bg-rose-50/20" : "border-neutral-300 dark:border-neutral-700"
-                    }`}
-                  />
+                  {PROVIDER_PRESET_MODELS[formProvider] ? (
+                    <div className="space-y-2">
+                      <select
+                        value={PROVIDER_PRESET_MODELS[formProvider].includes(formName) ? formName : "custom"}
+                        onChange={(e) => {
+                          if (e.target.value !== "custom") {
+                            setFormName(e.target.value);
+                            setFormAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"));
+                          }
+                        }}
+                        className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500"
+                      >
+                        {PROVIDER_PRESET_MODELS[formProvider].map((preset) => (
+                          <option key={preset} value={preset}>{preset}</option>
+                        ))}
+                        <option value="custom">+ Specify Custom Model Name</option>
+                      </select>
+                      {(!PROVIDER_PRESET_MODELS[formProvider].includes(formName)) && (
+                        <input
+                          type="text"
+                          value={formName}
+                          onChange={(e) => {
+                            setFormName(e.target.value);
+                            setFormAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"));
+                          }}
+                          placeholder="e.g. gpt-4o-2024-11-20"
+                          className="w-full h-9 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      placeholder="e.g. gpt-4o"
+                      className={`w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border rounded-lg text-xs font-medium ${
+                        formTouched && !formName.trim() ? "border-rose-500 bg-rose-50/20" : "border-neutral-300 dark:border-neutral-700"
+                      }`}
+                    />
+                  )}
                 </div>
 
                 {/* Model Alias */}
@@ -1410,8 +1260,8 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
                     type="text"
                     value={formAlias}
                     onChange={(e) => setFormAlias(e.target.value)}
-                    placeholder="e.g. azure-gpt4o-eastus"
-                    className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500"
+                    placeholder="e.g. primary-gpt4o"
+                    className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
                   />
                 </div>
 
@@ -1423,7 +1273,7 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
                   <select
                     value={formStatus}
                     onChange={(e) => setFormStatus(e.target.value as ModelItem["status"])}
-                    className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500"
+                    className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
                   >
                     <option value="Active">Active</option>
                     <option value="Paused">Paused</option>
@@ -1440,436 +1290,128 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
                     rows={2}
-                    placeholder="Describe the scope or intended workload for this model..."
-                    className="w-full p-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 resize-none"
+                    placeholder="Describe the intended capability or provider routing..."
+                    className="w-full p-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium resize-none"
                   />
                 </div>
               </div>
             </div>
 
-            {/* 2. Provider Configuration (Dynamic based on selected Provider) */}
+            {/* 2. Credential Selection */}
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
-              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800">
-                <h3 className="font-bold text-base text-neutral-900 dark:text-white">
-                  Provider Configuration ({formProvider})
+              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+                <h3 className="font-bold text-sm text-neutral-900 dark:text-white flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-amber-500" />
+                  Credential Selection
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-                {formProvider === "Azure AI" ? (
-                  <>
-                    <div className="space-y-1.5">
+              <div className="space-y-4 text-xs">
+                {/* Credential Mode Radio Buttons */}
+                <div className="flex items-center gap-6 p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-200 dark:border-neutral-700">
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-neutral-800 dark:text-neutral-200">
+                    <input
+                      type="radio"
+                      name="credentialMode"
+                      checked={formCredentialMode === "existing"}
+                      onChange={() => setFormCredentialMode("existing")}
+                      className="w-4 h-4 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span>Select Existing Credential</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-neutral-800 dark:text-neutral-200">
+                    <input
+                      type="radio"
+                      name="credentialMode"
+                      checked={formCredentialMode === "new"}
+                      onChange={() => setFormCredentialMode("new")}
+                      className="w-4 h-4 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span>Configure New Credential</span>
+                  </label>
+                </div>
+
+                {formCredentialMode === "existing" ? (
+                  <div className="space-y-1.5">
+                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                      Select Registered KeyVault Credential <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={formCredentialRef}
+                      onChange={(e) => setFormCredentialRef(e.target.value)}
+                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-mono font-medium"
+                    >
+                      {MOCK_CREDENTIAL_OPTIONS.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                    <div className="space-y-1.5 md:col-span-2">
                       <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                        Resource Endpoint <span className="text-rose-500">*</span>
+                        API Key Secret Reference / Name <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="text"
-                        value={formResourceEndpoint}
-                        onChange={(e) => setFormResourceEndpoint(e.target.value)}
-                        placeholder="https://your-resource.openai.azure.com"
+                        value={formApiKeySecret}
+                        onChange={(e) => setFormApiKeySecret(e.target.value)}
+                        placeholder="e.g. kv-custom-openai-secret"
                         className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                        Deployment ID <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={formDeploymentId}
-                        onChange={(e) => setFormDeploymentId(e.target.value)}
-                        placeholder="gpt-4o-prod-01"
-                        className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                        API Version
-                      </label>
-                      <input
-                        type="text"
-                        value={formApiVersion}
-                        onChange={(e) => setFormApiVersion(e.target.value)}
-                        placeholder="2024-02-15-preview"
-                        className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                      />
-                    </div>
-                  </>
-                ) : formProvider === "Ollama" ? (
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Ollama Host Endpoint <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formApiEndpoint}
-                      onChange={(e) => setFormApiEndpoint(e.target.value)}
-                      placeholder="http://localhost:11434"
-                      className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Base Endpoint URL
-                    </label>
-                    <input
-                      type="text"
-                      value={formApiEndpoint}
-                      onChange={(e) => setFormApiEndpoint(e.target.value)}
-                      placeholder="https://api.openai.com/v1"
-                      className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                    />
+
+                    {formProvider === "Azure AI" && (
+                      <>
+                        <div className="space-y-1.5">
+                          <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                            Resource Endpoint URL
+                          </label>
+                          <input
+                            type="text"
+                            value={formResourceEndpoint}
+                            onChange={(e) => setFormResourceEndpoint(e.target.value)}
+                            placeholder="https://resource.openai.azure.com"
+                            className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                            Deployment ID
+                          </label>
+                          <input
+                            type="text"
+                            value={formDeploymentId}
+                            onChange={(e) => setFormDeploymentId(e.target.value)}
+                            placeholder="gpt-4o-prod-01"
+                            className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {formProvider !== "Azure AI" && (
+                      <div className="space-y-1.5 md:col-span-2">
+                        <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
+                          Base Endpoint URL <span className="text-neutral-400 font-normal">(Optional Override)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formApiEndpoint}
+                          onChange={(e) => setFormApiEndpoint(e.target.value)}
+                          placeholder="https://api.openai.com/v1"
+                          className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
-
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    API Key Secret Reference
-                  </label>
-                  <input
-                    type="password"
-                    value={formApiKeySecret}
-                    onChange={(e) => setFormApiKeySecret(e.target.value)}
-                    placeholder="kv-secret-reference"
-                    className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                  />
-                </div>
               </div>
             </div>
 
-            {/* 3. Models Access Assignment (Provider-First Selection Pattern) */}
-            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
-              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-base text-neutral-900 dark:text-white">
-                    Models Access Assignment
-                  </h3>
-                  <p className="text-xs text-neutral-500 mt-0.5">
-                    Select AI providers and toggle specific models enabled for your organization.
-                  </p>
-                </div>
-                <div className="w-64">
-                  <input
-                    type="text"
-                    placeholder="Search provider models..."
-                    value={assignmentSearch}
-                    onChange={(e) => setAssignmentSearch(e.target.value)}
-                    className="w-full h-8 px-3 text-xs bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg"
-                  />
-                </div>
-              </div>
-
-              {/* Provider Accordion Cards */}
-              <div className="space-y-3">
-                {ALL_PROVIDER_CATALOG.map((providerGroup) => {
-                  const isExpanded = expandedProviders[providerGroup.id] ?? false;
-                  const selectedInGroup = selectedProviderModels[providerGroup.id] || [];
-                  const allSelectedInGroup = providerGroup.models.every((m) => selectedInGroup.includes(m.id));
-
-                  const filteredGroupModels = providerGroup.models.filter(
-                    (m) => !assignmentSearch || m.name.toLowerCase().includes(assignmentSearch.toLowerCase())
-                  );
-
-                  if (assignmentSearch && filteredGroupModels.length === 0) return null;
-
-                  return (
-                    <div
-                      key={providerGroup.id}
-                      className="border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden bg-neutral-50/40 dark:bg-neutral-900/40"
-                    >
-                      <div
-                        onClick={() => setExpandedProviders((prev) => ({ ...prev, [providerGroup.id]: !isExpanded }))}
-                        className="p-4 flex items-center justify-between cursor-pointer select-none bg-white dark:bg-neutral-900"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Cpu className="w-4 h-4 text-primary-600" />
-                          <span className="font-bold text-sm text-neutral-900 dark:text-white">
-                            {providerGroup.name}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-neutral-100 dark:bg-neutral-800 font-semibold text-neutral-600 dark:text-neutral-400">
-                            {selectedInGroup.length} / {providerGroup.models.length} Selected
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
-                          <label className="flex items-center gap-2 text-xs font-semibold text-primary-600 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={allSelectedInGroup}
-                              onChange={(e) => {
-                                const checked = e.target.checked;
-                                setSelectedProviderModels((prev) => ({
-                                  ...prev,
-                                  [providerGroup.id]: checked ? providerGroup.models.map((m) => m.id) : []
-                                }));
-                              }}
-                              className="w-4 h-4 rounded border-neutral-300 text-primary-600"
-                            />
-                            Select All
-                          </label>
-                          {isExpanded ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
-                        </div>
-                      </div>
-
-                      {isExpanded && (
-                        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-neutral-100 dark:border-neutral-800">
-                          {filteredGroupModels.map((m) => {
-                            const isChecked = selectedInGroup.includes(m.id);
-                            return (
-                              <label
-                                key={m.id}
-                                className={`p-3 rounded-lg border flex items-start gap-3 cursor-pointer transition-all ${
-                                  isChecked
-                                    ? "bg-primary-50/60 dark:bg-primary-950/30 border-primary-500/50"
-                                    : "bg-white dark:bg-neutral-950 border-neutral-200 dark:border-neutral-800 hover:border-neutral-300"
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={(e) => {
-                                    const checked = e.target.checked;
-                                    setSelectedProviderModels((prev) => {
-                                      const current = prev[providerGroup.id] || [];
-                                      return {
-                                        ...prev,
-                                        [providerGroup.id]: checked
-                                          ? [...current, m.id]
-                                          : current.filter((id) => id !== m.id)
-                                      };
-                                    });
-                                  }}
-                                  className="w-4 h-4 mt-0.5 rounded border-neutral-300 text-primary-600"
-                                />
-                                <div>
-                                  <div className="font-bold text-xs text-neutral-900 dark:text-white">{m.name}</div>
-                                  <div className="text-[11px] text-neutral-500">{m.desc}</div>
-                                </div>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 4. Budget Configuration */}
-            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
-              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800">
-                <h3 className="font-bold text-base text-neutral-900 dark:text-white">
-                  Budget Configuration
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Maximum Budget (USD)
-                  </label>
-                  <input
-                    type="number"
-                    value={formMaxBudget}
-                    onChange={(e) => setFormMaxBudget(e.target.value)}
-                    placeholder="10000"
-                    className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Soft Budget Threshold (USD)
-                  </label>
-                  <input
-                    type="number"
-                    value={formSoftBudget}
-                    onChange={(e) => setFormSoftBudget(e.target.value)}
-                    placeholder="8000"
-                    className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Notification Emails
-                  </label>
-                  <input
-                    type="email"
-                    value={formNotificationEmails}
-                    onChange={(e) => setFormNotificationEmails(e.target.value)}
-                    placeholder="alerts@company.com"
-                    className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Budget Reset Cycle
-                  </label>
-                  <select
-                    value={formResetCycle}
-                    onChange={(e) => setFormResetCycle(e.target.value as ModelItem["resetCycle"])}
-                    className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                  >
-                    <option value="Daily">Daily</option>
-                    <option value="Weekly">Weekly</option>
-                    <option value="Monthly">Monthly</option>
-                    <option value="Quarterly">Quarterly</option>
-                    <option value="Yearly">Yearly</option>
-                    <option value="Never">Never</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* 5. Rate Limits */}
-            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
-              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800">
-                <h3 className="font-bold text-base text-neutral-900 dark:text-white">
-                  Rate Limits
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 text-xs">
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    TPM (Tokens/Min)
-                  </label>
-                  <input
-                    type="number"
-                    value={formTpm}
-                    onChange={(e) => setFormTpm(e.target.value)}
-                    className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    RPM (Requests/Min)
-                  </label>
-                  <input
-                    type="number"
-                    value={formRpm}
-                    onChange={(e) => setFormRpm(e.target.value)}
-                    className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    RPD (Requests/Day)
-                  </label>
-                  <input
-                    type="number"
-                    value={formRpd}
-                    onChange={(e) => setFormRpd(e.target.value)}
-                    className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Concurrent Requests
-                  </label>
-                  <input
-                    type="number"
-                    value={formConcurrentRequests}
-                    onChange={(e) => setFormConcurrentRequests(e.target.value)}
-                    className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* 6. Advanced Configuration */}
-            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
-              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800">
-                <h3 className="font-bold text-base text-neutral-900 dark:text-white">
-                  Advanced Configuration
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 text-xs">
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Temperature ({formTemperature})
-                  </label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={2}
-                    step={0.1}
-                    value={formTemperature}
-                    onChange={(e) => setFormTemperature(parseFloat(e.target.value))}
-                    className="w-full cursor-pointer accent-primary-600"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Timeout (Seconds)
-                  </label>
-                  <input
-                    type="number"
-                    value={formTimeout}
-                    onChange={(e) => setFormTimeout(parseInt(e.target.value) || 30)}
-                    className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Max Retries
-                  </label>
-                  <input
-                    type="number"
-                    value={formMaxRetries}
-                    onChange={(e) => setFormMaxRetries(parseInt(e.target.value) || 0)}
-                    className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Max Tokens
-                  </label>
-                  <input
-                    type="number"
-                    value={formMaxTokens}
-                    onChange={(e) => setFormMaxTokens(parseInt(e.target.value) || 4096)}
-                    className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 flex flex-col sm:flex-row items-center gap-6 text-xs">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={formStreaming}
-                    onChange={(e) => setFormStreaming(e.target.checked)}
-                    className="w-4 h-4 rounded border-neutral-300 text-primary-600"
-                  />
-                  <span className="font-semibold text-neutral-800 dark:text-neutral-200">Enable Streaming</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={formPromptCaching}
-                    onChange={(e) => setFormPromptCaching(e.target.checked)}
-                    className="w-4 h-4 rounded border-neutral-300 text-primary-600"
-                  />
-                  <span className="font-semibold text-neutral-800 dark:text-neutral-200">Enable Prompt Caching</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Bottom Sticky Action Bar */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+            {/* Action Bar */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-200 dark:border-neutral-800">
               <SecondaryButton
                 onClick={() => {
                   if (isEditMode && selectedModel) setViewState("detail");
@@ -1879,7 +1421,7 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
                 Cancel
               </SecondaryButton>
               <PrimaryButton type="submit">
-                {isEditMode ? "Save Model Configuration" : "Create Model Configuration"}
+                {isEditMode ? "Save Model" : "Add Model"}
               </PrimaryButton>
             </div>
 
@@ -1957,7 +1499,7 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
             {/* Detail Tabs Header */}
             <div className="border-b border-neutral-200 dark:border-neutral-800">
               <div className="flex gap-6 text-xs font-semibold">
-                {(["overview", "configuration", "usage", "logs"] as const).map((t) => (
+                {(["overview", "configuration", "logs"] as const).map((t) => (
                   <button
                     key={t}
                     onClick={() => setDetailTab(t)}
@@ -1975,7 +1517,7 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
 
             {/* TAB CONTENT: OVERVIEW */}
             {detailTab === "overview" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-xs pt-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs pt-2">
                 {/* Card 1: Model Information */}
                 <div className="bg-neutral-50/50 dark:bg-neutral-800/30 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-3">
                   <h4 className="font-bold text-sm text-neutral-900 dark:text-white pb-2 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2">
@@ -1987,38 +1529,21 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
                     <div className="flex justify-between"><span className="text-neutral-400">Model Alias:</span><span className="font-mono text-neutral-800 dark:text-neutral-200">&lt;{selectedModel.alias}&gt;</span></div>
                     <div className="flex justify-between"><span className="text-neutral-400">Provider:</span><span className="font-semibold">{selectedModel.provider}</span></div>
                     <div className="flex justify-between"><span className="text-neutral-400">Health Status:</span>{renderHealthBadge(selectedModel.healthStatus)}</div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Input Cost:</span><span className="font-mono font-semibold">${selectedModel.inputCost.toFixed(2)} / 1M</span></div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Output Cost:</span><span className="font-mono font-semibold">${selectedModel.outputCost.toFixed(2)} / 1M</span></div>
+                    <div className="flex justify-between"><span className="text-neutral-400">Last Success:</span><span className="font-mono text-neutral-700 dark:text-neutral-300">{selectedModel.lastSuccess || "Just now"}</span></div>
                   </div>
                 </div>
 
-                {/* Card 2: Budget Summary */}
+                {/* Card 2: Credential & Endpoint Information */}
                 <div className="bg-neutral-50/50 dark:bg-neutral-800/30 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-3">
                   <h4 className="font-bold text-sm text-neutral-900 dark:text-white pb-2 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-emerald-600" />
-                    Budget Summary
+                    <KeyRound className="w-4 h-4 text-amber-500" />
+                    Credential & Endpoint Reference
                   </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between"><span className="text-neutral-400">Max Budget:</span><span className="font-mono font-semibold">${selectedModel.maxBudget.toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Soft Budget:</span><span className="font-mono font-semibold">${selectedModel.softBudget.toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Current Spend:</span><span className="font-mono font-bold text-emerald-600">${selectedModel.currentSpend.toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Reset Cycle:</span><span className="font-semibold">{selectedModel.resetCycle}</span></div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Alert Email:</span><span className="font-mono text-[11px]">{selectedModel.notificationEmails || "N/A"}</span></div>
-                  </div>
-                </div>
-
-                {/* Card 3: Rate Limits */}
-                <div className="bg-neutral-50/50 dark:bg-neutral-800/30 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-3">
-                  <h4 className="font-bold text-sm text-neutral-900 dark:text-white pb-2 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-blue-600" />
-                    Rate Limits & Slashing
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between"><span className="text-neutral-400">Tokens/Min (TPM):</span><span className="font-mono font-semibold">{selectedModel.tpmLimit.toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Requests/Min (RPM):</span><span className="font-mono font-semibold">{selectedModel.rpmLimit.toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Requests/Day (RPD):</span><span className="font-mono font-semibold">{selectedModel.rpdLimit.toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Concurrent Requests:</span><span className="font-mono font-semibold">{selectedModel.concurrentRequests}</span></div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Temperature:</span><span className="font-mono font-semibold">{selectedModel.temperature}</span></div>
+                  <div className="space-y-2 font-mono">
+                    <div className="flex justify-between"><span className="text-neutral-400 font-sans">Credential Reference:</span><span className="font-semibold text-amber-600 dark:text-amber-400">{selectedModel.credentialRef || selectedModel.apiKeySecret || "N/A"}</span></div>
+                    <div className="flex justify-between"><span className="text-neutral-400 font-sans">API / Base Endpoint:</span><span className="text-neutral-700 dark:text-neutral-300 truncate max-w-[200px]">{selectedModel.apiEndpoint || selectedModel.resourceEndpoint || "Default Provider URL"}</span></div>
+                    {selectedModel.deploymentId && <div className="flex justify-between"><span className="text-neutral-400 font-sans">Deployment ID:</span><span>{selectedModel.deploymentId}</span></div>}
+                    {selectedModel.apiVersion && <div className="flex justify-between"><span className="text-neutral-400 font-sans">API Version:</span><span>{selectedModel.apiVersion}</span></div>}
                   </div>
                 </div>
               </div>
@@ -2028,27 +1553,15 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
             {detailTab === "configuration" && (
               <div className="p-5 bg-neutral-50/50 dark:bg-neutral-800/30 border border-neutral-200 dark:border-neutral-800 rounded-xl text-xs space-y-4">
                 <h4 className="font-bold text-sm text-neutral-900 dark:text-white border-b pb-2">Read-Only Provider Settings</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 font-mono">
+                  <div><span className="text-neutral-400 block text-[10px]">CREDENTIAL REF</span>{selectedModel.credentialRef || "kv-default-key"}</div>
                   <div><span className="text-neutral-400 block text-[10px]">API ENDPOINT</span>{selectedModel.apiEndpoint || selectedModel.resourceEndpoint || "Default"}</div>
                   <div><span className="text-neutral-400 block text-[10px]">DEPLOYMENT ID</span>{selectedModel.deploymentId || "Standard"}</div>
-                  <div><span className="text-neutral-400 block text-[10px]">STREAMING</span>{selectedModel.streaming ? "Enabled" : "Disabled"}</div>
-                  <div><span className="text-neutral-400 block text-[10px]">PROMPT CACHING</span>{selectedModel.promptCaching ? "Enabled" : "Disabled"}</div>
                 </div>
               </div>
             )}
 
-            {/* TAB CONTENT: USAGE */}
-            {detailTab === "usage" && (
-              <div className="p-8 text-center border border-dashed rounded-xl space-y-3">
-                <TrendingUp className="w-8 h-8 mx-auto text-primary-600" />
-                <div className="font-bold text-sm">Model Metrics Analytics</div>
-                <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-                  Historical telemetry and live request rate tracking for {selectedModel.name}.
-                </p>
-              </div>
-            )}
-
-            {/* TAB CONTENT: LOGS (Reusing HB Audit Log Table) */}
+            {/* TAB CONTENT: LOGS */}
             {detailTab === "logs" && (
               <div className="space-y-4 pt-2">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -2110,188 +1623,104 @@ export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelMan
       )}
 
       {/* ========================================================================= */}
-      {/* FILTER DRAWER                                                             */}
-      {/* ========================================================================= */}
-      {showFilterDrawer && (
-        <div className="fixed inset-0 z-50 overflow-hidden animate-fadeIn">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setShowFilterDrawer(false)} />
-          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-md bg-white dark:bg-neutral-900 border-l border-neutral-200 dark:border-neutral-800 p-6 flex flex-col justify-between shadow-2xl">
-              <div className="space-y-6 overflow-y-auto">
-                <div className="flex items-center justify-between border-b pb-4">
-                  <div>
-                    <h3 className="font-bold text-base text-neutral-900 dark:text-white">Filter Models</h3>
-                    <p className="text-xs text-neutral-500">Filter models by provider and gateway status.</p>
-                  </div>
-                  <button type="button" onClick={() => setShowFilterDrawer(false)}>
-                    <X className="w-5 h-5 text-neutral-400 hover:text-neutral-700" />
-                  </button>
-                </div>
-
-                <div className="space-y-4 text-xs">
-                  {/* Provider */}
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-neutral-800 dark:text-neutral-200 block">Provider</label>
-                    <select
-                      value={filterProvider}
-                      onChange={(e) => setFilterProvider(e.target.value)}
-                      className="w-full h-10 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg"
-                    >
-                      <option value="All">All Providers</option>
-                      <option value="OpenAI">OpenAI</option>
-                      <option value="Anthropic">Anthropic</option>
-                      <option value="Azure AI">Azure AI</option>
-                      <option value="Google Gemini">Google Gemini</option>
-                      <option value="DeepSeek">DeepSeek</option>
-                      <option value="Ollama">Ollama</option>
-                    </select>
-                  </div>
-
-                  {/* Status */}
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-neutral-800 dark:text-neutral-200 block">Status</label>
-                    <select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      className="w-full h-10 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg"
-                    >
-                      <option value="All">All Statuses</option>
-                      <option value="Active">Active</option>
-                      <option value="Paused">Paused</option>
-                      <option value="Disabled">Disabled</option>
-                    </select>
-                  </div>
-
-                  {/* Created By */}
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-neutral-800 dark:text-neutral-200 block">Created By</label>
-                    <select
-                      value={filterCreatedBy}
-                      onChange={(e) => setFilterCreatedBy(e.target.value)}
-                      className="w-full h-10 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg"
-                    >
-                      <option value="All">All Users</option>
-                      <option value="hbadmin@yopmail.com">hbadmin@yopmail.com</option>
-                      <option value="sarah.connor@hb.com">sarah.connor@hb.com</option>
-                      <option value="alex.dev@hb.com">alex.dev@hb.com</option>
-                      <option value="superadmin@spinecloudiq.com">superadmin@spinecloudiq.com</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Drawer Footer Actions */}
-              <div className="pt-4 border-t flex justify-end gap-3">
-                <SecondaryButton
-                  onClick={() => {
-                    setFilterProvider("All");
-                    setFilterStatus("All");
-                    setFilterCreatedBy("All");
-                  }}
-                >
-                  Reset Filters
-                </SecondaryButton>
-                <PrimaryButton onClick={() => setShowFilterDrawer(false)}>
-                  Apply Filters
-                </PrimaryButton>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* EXPORT MODAL                                                              */}
-      {/* ========================================================================= */}
-      {showExportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl max-w-md w-full p-6 space-y-5">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-bold text-base text-neutral-900 dark:text-white flex items-center gap-2">
-                <Download className="w-4 h-4 text-primary-600" />
-                Export Models Dataset
-              </h3>
-              <button type="button" onClick={() => setShowExportModal(false)}>
-                <X className="w-4 h-4 text-neutral-400" />
-              </button>
-            </div>
-
-            <p className="text-xs text-neutral-500">
-              Export active dataset ({filteredModels.length} records) to your preferred file format:
-            </p>
-
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <button
-                type="button"
-                onClick={handleExportCSV}
-                className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-primary-500 flex flex-col items-center gap-2 cursor-pointer"
-              >
-                <FileText className="w-8 h-8 text-blue-600" />
-                <span className="font-bold">CSV Format</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleExportCSV}
-                className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-primary-500 flex flex-col items-center gap-2 cursor-pointer"
-              >
-                <FileSpreadsheet className="w-8 h-8 text-emerald-600" />
-                <span className="font-bold">Excel (.xlsx)</span>
-              </button>
-            </div>
-
-            <div className="pt-3 border-t flex justify-end">
-              <SecondaryButton onClick={() => setShowExportModal(false)}>Cancel</SecondaryButton>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* STATUS TOGGLE MODAL                                                       */}
-      {/* ========================================================================= */}
-      {showStatusModal && targetModel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4">
-            <h3 className="font-bold text-base text-neutral-900 dark:text-white">
-              {targetModel.status === "Active" ? "Pause Model" : "Enable Model"}
-            </h3>
-            <p className="text-xs text-neutral-500">
-              Are you sure you want to {targetModel.status === "Active" ? "pause routing traffic for" : "enable routing for"} model <span className="font-semibold text-neutral-900 dark:text-white">{targetModel.name}</span>?
-            </p>
-            <div className="flex justify-end gap-3 pt-2">
-              <SecondaryButton onClick={() => setShowStatusModal(false)}>Cancel</SecondaryButton>
-              <PrimaryButton onClick={handleConfirmToggleStatus}>
-                Confirm {targetModel.status === "Active" ? "Pause" : "Enable"}
-              </PrimaryButton>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* DELETE CONFIRMATION MODAL                                                 */}
+      {/* DELETE CONFIRMATION MODAL WITH DEPENDENCY WARNING                         */}
       {/* ========================================================================= */}
       {showDeleteModal && targetModel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4">
-            <h3 className="font-bold text-base text-rose-600 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" />
-              Delete Model Mapping
-            </h3>
-            <p className="text-xs text-neutral-500">
-              This action will permanently delete <span className="font-semibold text-neutral-900 dark:text-white">{targetModel.name}</span> ({targetModel.modelId}) from your Organization Gateway. This cannot be undone.
-            </p>
-            <div className="flex justify-end gap-3 pt-2">
-              <SecondaryButton onClick={() => setShowDeleteModal(false)}>Cancel</SecondaryButton>
-              <button
-                type="button"
-                onClick={handleConfirmDelete}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg shadow-sm"
-              >
-                Delete Model
-              </button>
-            </div>
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+            {/* Check if model has active dependencies */}
+            {((targetModel.dependentOrgs && targetModel.dependentOrgs.length > 0) ||
+              (targetModel.dependentTeams && targetModel.dependentTeams.length > 0) ||
+              (targetModel.dependentKeys && targetModel.dependentKeys.length > 0)) ? (
+              <>
+                <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-neutral-900 dark:text-white">Cannot Delete Model</h3>
+                    <p className="text-xs text-rose-500">Active dependencies detected</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <p className="text-neutral-600 dark:text-neutral-300 leading-relaxed bg-neutral-50 dark:bg-neutral-800/40 p-3 rounded-xl border border-neutral-200/60 dark:border-neutral-700">
+                    Model <strong className="text-neutral-900 dark:text-white">{targetModel.name}</strong> ({targetModel.modelId}) is currently assigned to active entities. Please reassign or remove model access from these entities before deleting.
+                  </p>
+
+                  <div className="space-y-2 border border-rose-200/60 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20 p-3 rounded-xl">
+                    <div className="font-semibold text-rose-800 dark:text-rose-300 text-[11px] uppercase tracking-wider">
+                      Active Dependent Entities:
+                    </div>
+
+                    {targetModel.dependentOrgs && targetModel.dependentOrgs.length > 0 && (
+                      <div className="flex items-start gap-2">
+                        <span className="font-medium text-neutral-500 w-24 shrink-0">Organizations:</span>
+                        <div className="flex flex-wrap gap-1">
+                          {targetModel.dependentOrgs.map((org) => (
+                            <span key={org} className="px-2 py-0.5 rounded bg-white dark:bg-neutral-800 border text-[11px] font-semibold">
+                              {org}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {targetModel.dependentTeams && targetModel.dependentTeams.length > 0 && (
+                      <div className="flex items-start gap-2">
+                        <span className="font-medium text-neutral-500 w-24 shrink-0">Teams:</span>
+                        <div className="flex flex-wrap gap-1">
+                          {targetModel.dependentTeams.map((t) => (
+                            <span key={t} className="px-2 py-0.5 rounded bg-white dark:bg-neutral-800 border text-[11px] font-semibold">
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {targetModel.dependentKeys && targetModel.dependentKeys.length > 0 && (
+                      <div className="flex items-start gap-2">
+                        <span className="font-medium text-neutral-500 w-24 shrink-0">Virtual Keys:</span>
+                        <div className="flex flex-wrap gap-1">
+                          {targetModel.dependentKeys.map((vk) => (
+                            <span key={vk} className="px-2 py-0.5 rounded bg-white dark:bg-neutral-800 border font-mono text-[11px] font-semibold">
+                              {vk}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-neutral-200 dark:border-neutral-800">
+                  <SecondaryButton onClick={() => setShowDeleteModal(false)}>
+                    Go Back
+                  </SecondaryButton>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="font-bold text-base text-rose-600 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  Delete Model Registration
+                </h3>
+                <p className="text-xs text-neutral-500 leading-relaxed">
+                  Are you sure you want to permanently delete model <span className="font-semibold text-neutral-900 dark:text-white">{targetModel.name}</span> ({targetModel.modelId}) from your platform registry?
+                </p>
+                <div className="flex justify-end gap-3 pt-2">
+                  <SecondaryButton onClick={() => setShowDeleteModal(false)}>Cancel</SecondaryButton>
+                  <button
+                    type="button"
+                    onClick={handleConfirmDelete}
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg shadow-sm"
+                  >
+                    Delete Model
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

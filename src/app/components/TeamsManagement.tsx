@@ -1193,7 +1193,7 @@ export function TeamsManagement({ hideHeader = false, orgName, orgId }: TeamsMan
 
               {/* TAB 1: OVERVIEW */}
               {detailTab === "overview" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-2 animate-fadeIn text-xs">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2 animate-fadeIn text-xs">
                   <div className="bg-neutral-50/70 dark:bg-neutral-800/40 border rounded-xl p-5 space-y-3">
                     <h4 className="font-bold text-neutral-900 dark:text-white uppercase tracking-wider text-[11px] flex items-center gap-2">
                       <DollarSign className="w-4 h-4 text-emerald-600" /> Budget Summary
@@ -1202,16 +1202,6 @@ export function TeamsManagement({ hideHeader = false, orgName, orgId }: TeamsMan
                     <div className="text-neutral-400 text-[11px]">Allocated: ${selectedTeam.maxBudget.toFixed(2)}</div>
                     <div className="w-full h-2 bg-neutral-200 rounded-full overflow-hidden">
                       <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, (selectedTeam.currentSpend / selectedTeam.maxBudget) * 100)}%` }} />
-                    </div>
-                  </div>
-
-                  <div className="bg-neutral-50/70 dark:bg-neutral-800/40 border rounded-xl p-5 space-y-3">
-                    <h4 className="font-bold text-neutral-900 dark:text-white uppercase tracking-wider text-[11px] flex items-center gap-2">
-                      <Zap className="w-4 h-4 text-amber-600" /> Rate Limits
-                    </h4>
-                    <div className="grid grid-cols-2 gap-3 font-mono font-bold text-lg">
-                      <div><span className="text-neutral-400 block text-[11px] font-sans">TPM</span>{selectedTeam.tpmLimit.toLocaleString()}</div>
-                      <div><span className="text-neutral-400 block text-[11px] font-sans">RPM</span>{selectedTeam.rpmLimit.toLocaleString()}</div>
                     </div>
                   </div>
 
@@ -2106,44 +2096,6 @@ export function TeamsManagement({ hideHeader = false, orgName, orgId }: TeamsMan
                   <p className="text-[11px] text-neutral-400 font-medium">
                     Recipients receive email notifications when Soft Budget or Maximum Budget is reached.
                   </p>
-                </div>
-              </div>
-
-              {/* SECTION 4 — RATE LIMITS (TPM / RPM) */}
-              <div className="bg-neutral-50/50 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800 rounded-xl p-4 space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
-                  <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  <h4 className="font-bold text-sm text-neutral-900 dark:text-white">
-                    Rate Limits (TPM / RPM)
-                  </h4>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Tokens Per Minute (TPM)
-                    </label>
-                    <input
-                      type="number"
-                      value={formTpmLimit}
-                      onChange={(e) => setFormTpmLimit(e.target.value)}
-                      placeholder="500000"
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-mono font-medium"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Requests Per Minute (RPM)
-                    </label>
-                    <input
-                      type="number"
-                      value={formRpmLimit}
-                      onChange={(e) => setFormRpmLimit(e.target.value)}
-                      placeholder="5000"
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-mono font-medium"
-                    />
-                  </div>
                 </div>
               </div>
             </div>
