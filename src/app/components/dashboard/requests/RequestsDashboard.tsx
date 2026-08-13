@@ -16,20 +16,20 @@ interface RequestsDashboardProps {
 export function RequestsDashboard({ filters, onChangeFilter, onResetFilters }: RequestsDashboardProps) {
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Filter Bar */}
+      {/* 1. Diagnostic Filter Bar */}
       <RequestsFilters filters={filters} onChangeFilter={onChangeFilter} onResetFilters={onResetFilters} />
 
-      {/* 10 KPI Cards (5x2 Grid) */}
+      {/* 2. 10 KPI Cards (5x2 Grid) */}
       <RequestsKPICards />
 
-      {/* Hero Chart: Request Volume Trend */}
+      {/* 3. Hero Trajectory Chart */}
       <RequestVolumeTrend />
 
-      {/* 50% Row: Volume Breakdown & Load Distribution Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RequestVolumeBreakdown />
-        <LoadDistributionHeatmap />
-      </div>
+      {/* 4. Request Volume Progress Breakdown (3 Sections: Models, Teams, Providers) */}
+      <RequestVolumeBreakdown />
+
+      {/* 5. Full Width Bottom Section: Peak Failure & Load Distribution Grid */}
+      <LoadDistributionHeatmap />
     </div>
   );
 }

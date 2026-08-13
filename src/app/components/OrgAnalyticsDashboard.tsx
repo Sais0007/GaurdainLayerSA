@@ -18,13 +18,12 @@ import {
 import { toast } from "sonner";
 
 // Internal Dashboard Subcomponents & Modals
-import { FilterState, MOCK_ORGANIZATIONS } from "./dashboard/dashboardData";
+import { FilterState } from "./dashboard/dashboardData";
 import { FinancialHealthOverview } from "./dashboard/FinancialHealthOverview";
 import { OperationalHealthOverview } from "./dashboard/OperationalHealthOverview";
 import { BudgetBurnForecastChart } from "./dashboard/BudgetBurnForecastChart";
 import { SpendBreakdownTable } from "./dashboard/SpendBreakdownTable";
 import { HourlySpendGridHeatmap } from "./dashboard/HourlySpendGridHeatmap";
-import { InsightCardsGrid } from "./dashboard/InsightCardsGrid";
 
 import { SpendBudgetDashboard } from "./dashboard/spend-budget/SpendBudgetDashboard";
 import { RequestsDashboard } from "./dashboard/requests/RequestsDashboard";
@@ -231,7 +230,7 @@ export function OrgAnalyticsDashboard({
           <button
             type="button"
             onClick={handleRefreshClick}
-            className="p-2 rounded-xl bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-750 text-neutral-700 dark:text-neutral-300 transition-colors shadow-2xs"
+            className="p-2 rounded-xl bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-750 text-neutral-700 dark:text-neutral-300 transition-colors shadow-2xs focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500"
             title="Refresh Telemetry Stream"
           >
             <RefreshCw className="w-4 h-4" />
@@ -240,7 +239,7 @@ export function OrgAnalyticsDashboard({
           <button
             type="button"
             onClick={handleExportClick}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-bold transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-bold transition-colors shadow-xs focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500"
           >
             <Download className="w-4 h-4" />
             Export Telemetry
@@ -249,36 +248,38 @@ export function OrgAnalyticsDashboard({
 
       </div>
 
-      {/* 6 Main Dashboard Tab Navigation Router */}
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-1.5 shadow-xs flex items-center gap-1.5 overflow-x-auto">
-        {(
-          [
-            { id: "overview", label: "Overview", icon: LayoutDashboard },
-            { id: "spend", label: "Spend & Budget", icon: DollarSign },
-            { id: "requests", label: "Requests", icon: Zap },
-            { id: "tokens", label: "Tokens", icon: Cpu },
-            { id: "reliability", label: "Reliability", icon: ShieldCheck },
-            { id: "capacity", label: "Capacity", icon: Activity },
-          ] as const
-        ).map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                isActive
-                  ? "bg-primary-600 text-white shadow-md shadow-primary-500/20"
-                  : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+      {/* 6 Main Dashboard Tab Navigation Router (Clean HB Tab Strip) */}
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl px-6 pt-3 shadow-xs">
+        <div className="flex items-center gap-6 overflow-x-auto border-b border-neutral-200 dark:border-neutral-800">
+          {(
+            [
+              { id: "overview", label: "Overview", icon: LayoutDashboard },
+              { id: "spend", label: "Spend & Budget", icon: DollarSign },
+              { id: "requests", label: "Requests", icon: Zap },
+              { id: "tokens", label: "Tokens", icon: Cpu },
+              { id: "reliability", label: "Reliability", icon: ShieldCheck },
+              { id: "capacity", label: "Capacity", icon: Activity },
+            ] as const
+          ).map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`pb-3 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all whitespace-nowrap focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 ${
+                  isActive
+                    ? "border-primary-600 text-primary-600 dark:text-primary-400 font-bold"
+                    : "border-transparent text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Main Content Router */}
@@ -296,7 +297,6 @@ export function OrgAnalyticsDashboard({
               <BudgetBurnForecastChart />
               <SpendBreakdownTable onInspectTrace={handleOpenInspector} />
               <HourlySpendGridHeatmap />
-              <InsightCardsGrid />
             </div>
           )}
 
