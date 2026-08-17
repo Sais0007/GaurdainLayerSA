@@ -74,6 +74,128 @@ export const COUNTRIES_AND_STATES: Record<string, string[]> = {
   "Singapore": ["Central Region", "North-East Region", "East Region", "West Region"]
 };
 
+// --- Catalog Provider & Full Model Catalog Definitions (Add/Edit Organization) ---
+export interface OrgCatalogProvider {
+  id: string;
+  name: string;
+  count: number;
+  color: string;
+}
+
+export const ORG_CATALOG_PROVIDERS: OrgCatalogProvider[] = [
+  { id: "openai", name: "OpenAI", count: 65, color: "#2563eb" },
+  { id: "anthropic", name: "Anthropic", count: 35, color: "#7c3aed" },
+  { id: "gemini", name: "Google Gemini", count: 55, color: "#db2777" },
+  { id: "azure", name: "Azure OpenAI", count: 50, color: "#059669" },
+  { id: "bedrock", name: "AWS Bedrock", count: 80, color: "#d97706" },
+  { id: "mistral", name: "Mistral AI", count: 40, color: "#0891b2" },
+  { id: "cohere", name: "Cohere", count: 25, color: "#dc2626" },
+  { id: "groq", name: "Groq", count: 18, color: "#4f46e5" },
+  { id: "perplexity", name: "Perplexity", count: 12, color: "#65a30d" },
+  { id: "deepseek", name: "DeepSeek", count: 20, color: "#9333ea" },
+  { id: "xai", name: "xAI", count: 10, color: "#2563eb" },
+  { id: "metaLlama", name: "Meta Llama", count: 30, color: "#7c3aed" },
+  { id: "watsonx", name: "IBM watsonx", count: 22, color: "#db2777" },
+  { id: "ai21", name: "AI21 Labs", count: 15, color: "#059669" },
+  { id: "voyage", name: "Voyage AI", count: 13, color: "#d97706" },
+  { id: "huggingface", name: "HuggingFace", count: 380, color: "#0891b2" },
+  { id: "openrouter", name: "OpenRouter", count: 220, color: "#dc2626" },
+  { id: "together", name: "Together AI", count: 150, color: "#4f46e5" },
+  { id: "fireworks", name: "Fireworks AI", count: 120, color: "#65a30d" },
+  { id: "replicate", name: "Replicate", count: 90, color: "#9333ea" },
+];
+
+export const ORG_FULL_CATALOG: Record<string, string[]> = (() => {
+  const curated: Record<string, string[]> = {
+    openai: [
+      "gpt-4o",
+      "gpt-4o-mini",
+      "gpt-4.1",
+      "gpt-4.1-mini",
+      "o3",
+      "o3-mini",
+      "o4-mini",
+      "chatgpt-image-latest",
+      "sora-2-pro",
+      "tts-1",
+      "whisper-1",
+      "text-embedding-3-large",
+    ],
+    anthropic: [
+      "claude-opus-4-5",
+      "claude-sonnet-4-5",
+      "claude-haiku-4-5",
+      "claude-3-5-sonnet-20241022",
+      "claude-3-opus-20240229",
+    ],
+    gemini: [
+      "gemini/gemini-2.5-flash",
+      "gemini/gemini-2.5-pro",
+      "gemini-pro-latest",
+      "gemini-flash-latest",
+      "gemini-embedding-001",
+    ],
+    azure: [
+      "azure/gpt-4o",
+      "azure/gpt-4o-mini",
+      "azure/gpt-4.1",
+      "azure/o3-mini",
+      "azure/text-embedding-3-large",
+    ],
+    bedrock: [
+      "amazon.titan-text-express-v1",
+      "anthropic.claude-3-sonnet-20240229-v1:0",
+      "meta.llama3-70b-instruct-v1:0",
+      "mistral.mixtral-8x7b-instruct-v0:1",
+    ],
+    mistral: ["mistral-large-latest", "mistral-small-latest", "codestral-latest", "mistral-embed"],
+    cohere: ["command-r-plus", "command-r", "embed-english-v3.0"],
+    groq: ["llama-3.3-70b-versatile", "mixtral-8x7b-32768"],
+    perplexity: ["sonar-pro", "sonar", "sonar-reasoning"],
+    deepseek: ["deepseek-chat", "deepseek-reasoner"],
+    xai: ["grok-3", "grok-3-mini", "grok-2-vision"],
+    metaLlama: ["llama-3.3-70b", "llama-3.1-405b"],
+    watsonx: ["granite-13b-chat-v2", "llama-3-70b-instruct"],
+    ai21: ["jamba-1.5-large", "jamba-1.5-mini"],
+    voyage: ["voyage-3", "voyage-code-3"],
+  };
+
+  const ORGS = ["meta-llama", "mistralai", "Qwen", "google", "microsoft", "tiiuae", "deepseek-ai", "bigcode"];
+  const FAMILIES = ["llama-3", "mistral-7b", "mixtral-8x7b", "qwen2.5-72b", "gemma-2-9b", "phi-3-medium"];
+  const SIZES = ["1.3", "7", "13", "34", "70"];
+  const VARIANTS = ["instruct", "chat", "it", "base"];
+
+  const hub: Record<string, string[]> = {};
+  ["huggingface", "openrouter", "together", "fireworks", "replicate"].forEach((id) => {
+    const p = ORG_CATALOG_PROVIDERS.find((x) => x.id === id);
+    if (p) {
+      hub[id] = Array.from({ length: p.count }, (_, i) => {
+        const org = ORGS[i % ORGS.length];
+        const fam = FAMILIES[(i * 3) % FAMILIES.length].split("-")[0];
+        const size = SIZES[(i * 7) % SIZES.length];
+        const variant = VARIANTS[(i * 11) % VARIANTS.length];
+        return `${org}/${fam}-${size}b-${variant}`;
+      });
+    }
+  });
+
+  return { ...curated, ...hub };
+})();
+
+export function getOrgModelInfoText(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (Math.imul(31, hash) + name.charCodeAt(i)) | 0;
+  const h = Math.abs(hash);
+  const CTX = [4096, 8192, 16384, 32768, 65536, 131072, 200000, 1000000];
+  const contextWindow = CTX[h % CTX.length];
+  const maxOutput = [1024, 2048, 4096, 8192, 16384][h % 5];
+  const inputPrice = Math.round((((h * 17) % 300) / 100) * 100) / 100;
+  const outputPrice = Math.round(inputPrice * (2 + (h % 3)) * 100) / 100;
+
+  const fmt = (n: number) => (n >= 1000000 ? `${n / 1000000}M` : n >= 1000 ? `${Math.round(n / 1000)}K` : String(n));
+  return `Context: ${fmt(contextWindow)} · Max Output: ${fmt(maxOutput)} · Input: $${inputPrice.toFixed(2)}/1M · Output: $${outputPrice.toFixed(2)}/1M`;
+}
+
 // --- Organization Data Interface ---
 export interface OrganizationItem {
   id: string;
@@ -757,75 +879,39 @@ export default function OrganizationManagement() {
   // Extended Form State for Create / Edit Organization Modal
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
-  const [formModelSelectionType, setFormModelSelectionType] = useState<"all" | "selected">("all");
-  const [formSelectedModels, setFormSelectedModels] = useState<string[]>([]);
-  const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>(["openai", "anthropic"]);
-  const [collapsedProviderIds, setCollapsedProviderIds] = useState<string[]>([]);
-  const [modelSearchQuery, setModelSearchQuery] = useState("");
+  const [formModelSelectionType, setFormModelSelectionType] = useState<"all" | "selected">("selected");
 
-  const getProviderIdsForModels = (modelNames: string[]): string[] => {
-    const providerIds = new Set<string>();
-    modelNames.forEach((modelName) => {
-      AI_PROVIDERS.forEach((provider) => {
-        if (provider.models.some((m) => m.name.toLowerCase() === modelName.toLowerCase())) {
-          providerIds.add(provider.id);
-        }
+  // Models Access Assignment State (Reference: Add Organization.dc.html)
+  const [selectedByProvider, setSelectedByProvider] = useState<Record<string, Record<string, boolean>>>({
+    openai: { "chatgpt-image-latest": true, "sora-2-pro": true },
+  });
+  const [expandedSummaryProviderId, setExpandedSummaryProviderId] = useState<string | null>(null);
+  const [globalModelSearch, setGlobalModelSearch] = useState("");
+  const [providerListSearch, setProviderListSearch] = useState("");
+  const [activeProviderId, setActiveProviderId] = useState("openai");
+  const [providerModelSearch, setProviderModelSearch] = useState("");
+  const [infoOpenKey, setInfoOpenKey] = useState<string | null>(null);
+
+  const countOf = (providerId: string): number =>
+    Object.values(selectedByProvider[providerId] || {}).filter(Boolean).length;
+
+  const totalSelectedModels = useMemo(() => {
+    return ORG_CATALOG_PROVIDERS.reduce((acc, p) => acc + countOf(p.id), 0);
+  }, [selectedByProvider]);
+
+  const providersWithSelection = useMemo(() => {
+    return ORG_CATALOG_PROVIDERS.filter((p) => countOf(p.id) > 0);
+  }, [selectedByProvider]);
+
+  const getAllSelectedModelsList = (): string[] => {
+    const list: string[] = [];
+    Object.entries(selectedByProvider).forEach(([_, modelsMap]) => {
+      Object.entries(modelsMap).forEach(([modelName, isSel]) => {
+        if (isSel) list.push(modelName);
       });
     });
-    if (providerIds.size === 0) {
-      return ["openai", "anthropic"];
-    }
-    return Array.from(providerIds);
+    return list;
   };
-
-  const filteredProviders = useMemo(() => {
-    if (!modelSearchQuery.trim()) return AI_PROVIDERS;
-    const q = modelSearchQuery.toLowerCase();
-    return AI_PROVIDERS.filter((p) => {
-      const providerMatches = p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
-      const modelMatches = p.models.some((m) => m.name.toLowerCase().includes(q));
-      return providerMatches || modelMatches;
-    });
-  }, [modelSearchQuery]);
-
-  const [activeProviderCards, setActiveProviderCards] = useState<ActiveProviderCard[]>([
-    { providerId: "openai", providerName: "OpenAI", selectedModels: ["GPT-4o", "GPT-4 Mini"] },
-    { providerId: "anthropic", providerName: "Anthropic", selectedModels: ["Claude 3.5 Sonnet"] },
-  ]);
-  const [showAddProviderDropdown, setShowAddProviderDropdown] = useState(false);
-
-  const availableProvidersToAdd = useMemo(() => {
-    return AI_PROVIDERS.filter((p) => !activeProviderCards.some((card) => card.providerId === p.id));
-  }, [activeProviderCards]);
-
-  const handleAddProviderCard = (p: typeof AI_PROVIDERS[0]) => {
-    if (activeProviderCards.some((card) => card.providerId === p.id)) return;
-    setActiveProviderCards((prev) => [
-      ...prev,
-      {
-        providerId: p.id,
-        providerName: p.name,
-        selectedModels: p.models.slice(0, 2).map((m) => m.name),
-      },
-    ]);
-    setShowAddProviderDropdown(false);
-  };
-
-  const handleRemoveProviderCard = (providerId: string) => {
-    setActiveProviderCards((prev) => prev.filter((card) => card.providerId !== providerId));
-  };
-
-  const handleUpdateCardModels = (providerId: string, newModels: string[]) => {
-    setActiveProviderCards((prev) =>
-      prev.map((card) => (card.providerId === providerId ? { ...card, selectedModels: newModels } : card))
-    );
-  };
-
-  const isProviderCardsValid = useMemo(() => {
-    if (formModelSelectionType === "all") return true;
-    if (activeProviderCards.length === 0) return false;
-    return activeProviderCards.every((card) => card.selectedModels.length > 0);
-  }, [formModelSelectionType, activeProviderCards]);
 
   // Organization Expiration Form State
   const [formExpirationType, setFormExpirationType] = useState<"lifetime" | "custom">("lifetime");
@@ -1359,11 +1445,15 @@ export default function OrganizationManagement() {
     setFormExpirationDate("");
     setFormExpirationDateError("");
     setFormModelSelectionType("selected");
-    setActiveProviderCards([
-      { providerId: "openai", providerName: "OpenAI", selectedModels: ["GPT-4o", "GPT-4 Mini"] },
-      { providerId: "anthropic", providerName: "Anthropic", selectedModels: ["Claude 3.5 Sonnet"] },
-    ]);
-    setShowAddProviderDropdown(false);
+    setSelectedByProvider({
+      openai: { "chatgpt-image-latest": true, "sora-2-pro": true },
+    });
+    setExpandedSummaryProviderId(null);
+    setGlobalModelSearch("");
+    setProviderListSearch("");
+    setActiveProviderId("openai");
+    setProviderModelSearch("");
+    setInfoOpenKey(null);
     setFormCountry("United States");
     setFormState("California");
     setFormCity("");
@@ -1385,29 +1475,35 @@ export default function OrganizationManagement() {
     setFormExpirationType(org.expirationType || "lifetime");
     setFormExpirationDate(org.expirationDate || "");
     setFormExpirationDateError("");
-    setFormModelSelectionType(org.modelSelectionType || "selected");
-    
-    const initialCards: ActiveProviderCard[] = [];
-    AI_PROVIDERS.forEach((p) => {
-      const pModelNames = p.models.map((m) => m.name);
-      const matched = org.assignedModels.filter((m) => pModelNames.includes(m));
-      if (matched.length > 0) {
-        initialCards.push({
-          providerId: p.id,
-          providerName: p.name,
-          selectedModels: matched,
+    setFormModelSelectionType(
+      org.modelSelectionType || (org.assignedModels.includes("All Models") ? "all" : "selected")
+    );
+
+    const initialSelectedByProv: Record<string, Record<string, boolean>> = {};
+    if (org.assignedModels && org.assignedModels.length > 0 && !org.assignedModels.includes("All Models")) {
+      org.assignedModels.forEach((assignedName) => {
+        let foundProvId = "openai";
+        Object.entries(ORG_FULL_CATALOG).forEach(([provId, models]) => {
+          if (models.some((m) => m.toLowerCase() === assignedName.toLowerCase())) {
+            foundProvId = provId;
+          }
         });
-      }
-    });
-    if (initialCards.length === 0) {
-      initialCards.push({
-        providerId: "openai",
-        providerName: "OpenAI",
-        selectedModels: ["GPT-4o"],
+        if (!initialSelectedByProv[foundProvId]) {
+          initialSelectedByProv[foundProvId] = {};
+        }
+        initialSelectedByProv[foundProvId][assignedName] = true;
       });
+    } else {
+      initialSelectedByProv["openai"] = { "gpt-4o": true };
     }
-    setActiveProviderCards(initialCards);
-    setShowAddProviderDropdown(false);
+
+    setSelectedByProvider(initialSelectedByProv);
+    setExpandedSummaryProviderId(null);
+    setGlobalModelSearch("");
+    setProviderListSearch("");
+    setActiveProviderId("openai");
+    setProviderModelSearch("");
+    setInfoOpenKey(null);
 
     setFormCountry(org.country || "United States");
     setFormState(org.state || "California");
@@ -1425,6 +1521,11 @@ export default function OrganizationManagement() {
   const handleSaveOrganization = () => {
     setFormTouched(true);
 
+    if (!formName.trim()) {
+      toast.error("Organization Name is required.");
+      return;
+    }
+
     if (formExpirationType === "custom") {
       if (!formExpirationDate) {
         setFormExpirationDateError("Expiration Date is required when Custom Expiration is selected.");
@@ -1441,17 +1542,30 @@ export default function OrganizationManagement() {
       }
     }
 
-    if (!isFormValid) return;
+    if (!formAdminName.trim()) {
+      toast.error("Primary Administrator Full Name is required.");
+      return;
+    }
+
+    if (!formAdminEmail.trim()) {
+      toast.error("Primary Administrator Email Address is required.");
+      return;
+    }
+
+    const selectedModelsList = getAllSelectedModelsList();
+    if (formModelSelectionType === "selected" && selectedModelsList.length === 0) {
+      toast.error("Please select at least one model or switch to All Available Models.");
+      return;
+    }
 
     setIsSubmitting(true);
     setTimeout(() => {
-      const computedModels = activeProviderCards.flatMap((c) => c.selectedModels);
       const finalModels =
         formModelSelectionType === "all"
           ? ["All Models"]
-          : computedModels.length > 0
-          ? computedModels
-          : ["GPT-4o"];
+          : selectedModelsList.length > 0
+          ? selectedModelsList
+          : ["gpt-4o"];
 
       if (isEditMode && selectedOrg) {
         const updatedOrg: OrganizationItem = {
@@ -1467,9 +1581,9 @@ export default function OrganizationManagement() {
           city: formCity,
           zipCode: formZipCode,
           phone: formPhone,
-          primaryAdminName: formAdminName,
-          primaryAdminEmail: formAdminEmail,
-          primaryAdminPhone: formAdminPhone,
+          primaryAdminName: formAdminName.trim(),
+          primaryAdminEmail: formAdminEmail.trim(),
+          primaryAdminPhone: formAdminPhone.trim(),
           lastUpdatedOn: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
           updatedBy: "superadmin@spinecloudiq.com",
         };
@@ -1503,12 +1617,14 @@ export default function OrganizationManagement() {
           city: formCity,
           zipCode: formZipCode,
           phone: formPhone,
-          primaryAdminName: formAdminName,
-          primaryAdminEmail: formAdminEmail,
-          primaryAdminPhone: formAdminPhone,
+          primaryAdminName: formAdminName.trim(),
+          primaryAdminEmail: formAdminEmail.trim(),
+          primaryAdminPhone: formAdminPhone.trim(),
           membersCount: 1,
           status: "Active",
           createdBy: "superadmin@spinecloudiq.com",
+          lastUpdatedOn: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+          updatedBy: "superadmin@spinecloudiq.com",
         };
 
         setOrganizations((prev) => [newOrg, ...prev]);
@@ -1572,6 +1688,37 @@ export default function OrganizationManagement() {
       {status}
     </span>
   );
+
+  // Derived Model Catalog Calculations for Form
+  const globalQuery = globalModelSearch.trim().toLowerCase();
+  const globalMatches = useMemo(() => {
+    if (!globalQuery) return [];
+    const list: Array<{ providerId: string; providerName: string; providerColor: string; name: string }> = [];
+    ORG_CATALOG_PROVIDERS.forEach((p) => {
+      (ORG_FULL_CATALOG[p.id] || []).forEach((name) => {
+        if (name.toLowerCase().includes(globalQuery)) {
+          list.push({ providerId: p.id, providerName: p.name, providerColor: p.color, name });
+        }
+      });
+    });
+    return list;
+  }, [globalQuery]);
+
+  const activeProviderObj = useMemo(
+    () => ORG_CATALOG_PROVIDERS.find((p) => p.id === activeProviderId) || ORG_CATALOG_PROVIDERS[0],
+    [activeProviderId]
+  );
+
+  const activeCatalogModels = useMemo(
+    () => (activeProviderObj ? ORG_FULL_CATALOG[activeProviderObj.id] || [] : []),
+    [activeProviderObj]
+  );
+
+  const filteredActiveModels = useMemo(() => {
+    if (!providerModelSearch.trim()) return activeCatalogModels;
+    const q = providerModelSearch.trim().toLowerCase();
+    return activeCatalogModels.filter((m) => m.toLowerCase().includes(q));
+  }, [activeCatalogModels, providerModelSearch]);
 
   return (
     <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-6">
@@ -1735,153 +1882,418 @@ export default function OrganizationManagement() {
               </div>
             </div>
 
-            {/* CARD 2: Models Access Assignment (Scalable Provider Cards Pattern) */}
+            {/* CARD 2: Models Access Assignment (Exact 1:1 match with Add Organization.dc.html) */}
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
-              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800">
                 <h3 className="font-bold text-base text-neutral-900 dark:text-white">
                   Models Access Assignment
                 </h3>
-                {formModelSelectionType === "selected" && (
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddProviderDropdown(!showAddProviderDropdown)}
-                      className="px-3.5 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-950/80 text-primary-700 dark:text-primary-300 border border-primary-200/80 dark:border-primary-800 hover:bg-primary-100 dark:hover:bg-primary-900 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add Provider</span>
-                    </button>
-
-                    {/* Add Provider Dropdown Menu */}
-                    {showAddProviderDropdown && (
-                      <div className="absolute right-0 top-full mt-1.5 z-40 w-56 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-2xl p-1.5 text-xs animate-fadeIn">
-                        <div className="px-2.5 py-1.5 text-[11px] font-bold text-neutral-400 uppercase tracking-wider border-b border-neutral-100 dark:border-neutral-800 mb-1">
-                          Select AI Provider
-                        </div>
-                        {availableProvidersToAdd.length === 0 ? (
-                          <div className="px-2 py-3 text-neutral-400 text-center text-[11px]">
-                            All available providers have been added.
-                          </div>
-                        ) : (
-                          availableProvidersToAdd.map((p) => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => handleAddProviderCard(p)}
-                              className="w-full text-left px-2.5 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800 rounded-lg flex items-center justify-between font-semibold text-neutral-800 dark:text-neutral-200 transition-colors"
-                            >
-                              <span>{p.name}</span>
-                              <span className="text-[10px] text-neutral-400 font-normal">({p.models.length} models)</span>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+                <p className="text-xs text-neutral-500 mt-1">
+                  {formModelSelectionType === "all"
+                    ? `Full catalog access across ${ORG_CATALOG_PROVIDERS.length} providers`
+                    : `${totalSelectedModels} model(s) selected across ${providersWithSelection.length} of ${ORG_CATALOG_PROVIDERS.length} providers`}
+                </p>
               </div>
 
               {/* Selection Mode Radios */}
               <div className="space-y-4 pt-1">
                 <div className="flex items-center gap-6 text-xs">
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-neutral-800 dark:text-neutral-200">
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-neutral-800 dark:text-neutral-200 select-none">
                     <input
                       type="radio"
                       name="modelSelectionType"
                       checked={formModelSelectionType === "all"}
                       onChange={() => setFormModelSelectionType("all")}
-                      className="w-4 h-4 text-primary-600 focus:ring-primary-500"
+                      className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-neutral-300 dark:border-neutral-700"
                     />
                     <span>All Available Models</span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-neutral-800 dark:text-neutral-200">
+
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-neutral-800 dark:text-neutral-200 select-none">
                     <input
                       type="radio"
                       name="modelSelectionType"
                       checked={formModelSelectionType === "selected"}
-                      onChange={() => {
-                        setFormModelSelectionType("selected");
-                        if (activeProviderCards.length === 0) {
-                          setActiveProviderCards([
-                            { providerId: "openai", providerName: "OpenAI", selectedModels: ["GPT-4o", "GPT-4 Mini"] },
-                            { providerId: "anthropic", providerName: "Anthropic", selectedModels: ["Claude 3.5 Sonnet"] }
-                          ]);
-                        }
-                      }}
-                      className="w-4 h-4 text-primary-600 focus:ring-primary-500"
+                      onChange={() => setFormModelSelectionType("selected")}
+                      className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-neutral-300 dark:border-neutral-700"
                     />
                     <span>Selected Models</span>
                   </label>
                 </div>
 
-                {formModelSelectionType === "selected" && (
-                  <div className="space-y-4 pt-2">
-                    {activeProviderCards.length === 0 ? (
-                      <div className="p-8 text-center bg-neutral-50/60 dark:bg-neutral-900/40 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-xl space-y-2">
-                        <Cpu className="w-8 h-8 text-neutral-400 mx-auto stroke-1" />
-                        <div className="text-xs font-bold text-neutral-700 dark:text-neutral-300">
-                          No Providers Added
-                        </div>
-                        <p className="text-[11px] text-neutral-500 max-w-sm mx-auto">
-                          Click <strong>"+ Add Provider"</strong> above to assign AI model providers to this organization.
-                        </p>
-                      </div>
-                    ) : (
-                      activeProviderCards.map((card) => {
-                        const providerObj = AI_PROVIDERS.find((p) => p.id === card.providerId);
-                        if (!providerObj) return null;
+                {/* Info Box when All Available Models is active */}
+                {formModelSelectionType === "all" && (
+                  <div className="bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700 rounded-xl p-3.5 text-xs text-neutral-700 dark:text-neutral-300 flex items-start gap-2.5 animate-fadeIn">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <p className="leading-relaxed">
+                      This organization gets access to every model across all {ORG_CATALOG_PROVIDERS.length} providers (1450 models today), including new models onboarded later. Browse the full catalog below — it's read-only in this mode.
+                    </p>
+                  </div>
+                )}
 
+                {/* Selected Models Summary Box (when Selected Models mode is active and totalSelectedModels > 0) */}
+                {formModelSelectionType === "selected" && totalSelectedModels > 0 && (
+                  <div className="bg-neutral-50 dark:bg-neutral-850 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3.5 space-y-3 animate-fadeIn">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">
+                        {totalSelectedModels} model(s) selected:
+                      </span>
+                      {providersWithSelection.map((p) => {
+                        const count = countOf(p.id);
+                        const isExpanded = expandedSummaryProviderId === p.id;
                         return (
                           <div
-                            key={card.providerId}
-                            className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs space-y-4 transition-all"
+                            key={p.id}
+                            className="bg-white dark:bg-neutral-900 border rounded-lg px-2.5 py-1 text-xs font-semibold flex items-center gap-2 shadow-2xs"
+                            style={{ borderColor: isExpanded ? p.color : undefined }}
                           >
-                            {/* Provider Card Header */}
-                            <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
-                              <div className="flex items-center gap-2.5">
-                                <span className="font-bold text-sm text-neutral-900 dark:text-white">
-                                  {card.providerName}
-                                </span>
-                                <span className="text-[11px] font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/60 px-2.5 py-0.5 rounded-full border border-primary-200/50">
-                                  {card.selectedModels.length} {card.selectedModels.length === 1 ? "Model" : "Models"} Selected
-                                </span>
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveProviderCard(card.providerId)}
-                                className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Remove Provider</span>
-                              </button>
-                            </div>
-
-                            {/* Multi-Select Searchable Dropdown Component for this Provider */}
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block">
-                                Choose Models
-                              </label>
-                              <MultiSelectSearchableDropdown
-                                options={providerObj.models.map((m) => ({
-                                  id: m.id,
-                                  name: m.name,
-                                  badge: m.badge,
-                                }))}
-                                selectedValues={card.selectedModels}
-                                onChange={(selected) => handleUpdateCardModels(card.providerId, selected)}
-                                placeholder={`Select ${card.providerName} models...`}
-                              />
-                              {card.selectedModels.length === 0 && (
-                                <p className="text-[11px] font-semibold text-rose-500 pt-1">
-                                  At least one model must be selected for {card.providerName}.
-                                </p>
-                              )}
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setExpandedSummaryProviderId(isExpanded ? null : p.id)}
+                              className="flex items-center gap-1.5 hover:text-primary-600 cursor-pointer"
+                            >
+                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+                              <span>{p.name} ({count})</span>
+                              <ChevronDown className={`w-3 h-3 text-neutral-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedByProvider((prev) => ({ ...prev, [p.id]: {} }));
+                                if (expandedSummaryProviderId === p.id) setExpandedSummaryProviderId(null);
+                              }}
+                              className="text-neutral-400 hover:text-rose-600 font-bold ml-1 cursor-pointer"
+                              title={`Clear all ${p.name} selections`}
+                            >
+                              &times;
+                            </button>
                           </div>
                         );
-                      })
+                      })}
+                    </div>
+
+                    {/* Expanded Provider Models Chip List */}
+                    {expandedSummaryProviderId && (
+                      <div className="pt-2 border-t border-neutral-200/60 dark:border-neutral-700 flex flex-wrap gap-1.5 animate-fadeIn">
+                        {Object.entries(selectedByProvider[expandedSummaryProviderId] || {})
+                          .filter(([_, isSel]) => isSel)
+                          .map(([modelName]) => (
+                            <span
+                              key={modelName}
+                              className="px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-mono font-semibold flex items-center gap-1.5"
+                            >
+                              <span>{modelName}</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSelectedByProvider((prev) => ({
+                                    ...prev,
+                                    [expandedSummaryProviderId]: {
+                                      ...(prev[expandedSummaryProviderId] || {}),
+                                      [modelName]: false,
+                                    },
+                                  }))
+                                }
+                                className="hover:text-rose-600 font-bold text-xs cursor-pointer"
+                              >
+                                &times;
+                              </button>
+                            </span>
+                          ))}
+                      </div>
                     )}
+                  </div>
+                )}
+
+                {/* Global Search Input */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={globalModelSearch}
+                    onChange={(e) => setGlobalModelSearch(e.target.value)}
+                    placeholder="Not sure which provider? Search all 1450 models by name..."
+                    className="w-full h-10 pl-10 pr-4 text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:outline-hidden transition-all text-neutral-900 dark:text-white"
+                  />
+                  <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+
+                {/* Mode A: Global Search Active Results */}
+                {globalModelSearch.trim() !== "" ? (
+                  <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl h-[420px] flex flex-col overflow-hidden bg-white dark:bg-neutral-900 animate-fadeIn">
+                    <div className="px-4 py-2.5 border-b border-neutral-100 dark:border-neutral-800 text-xs text-neutral-500 flex items-center justify-between">
+                      <span>
+                        {globalMatches.length > 60
+                          ? `Showing first 60 of ${globalMatches.length} matches — refine your search`
+                          : `${globalMatches.length} match(es) across all providers`}
+                      </span>
+                    </div>
+
+                    {globalMatches.length === 0 ? (
+                      <div className="p-8 text-center text-neutral-400 text-xs flex-1 flex items-center justify-center">
+                        No models match "{globalModelSearch}" across any provider.
+                      </div>
+                    ) : (
+                      <div className="p-3 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-2 flex-1 align-content-start">
+                        {globalMatches.slice(0, 60).map((m) => {
+                          const isChecked =
+                            formModelSelectionType === "all" ||
+                            Boolean(selectedByProvider[m.providerId]?.[m.name]);
+                          const infoKey = `global-${m.providerId}-${m.name}`;
+                          const isInfoOpen = infoOpenKey === infoKey;
+
+                          return (
+                            <div
+                              key={infoKey}
+                              onClick={() => {
+                                if (formModelSelectionType === "selected") {
+                                  setSelectedByProvider((prev) => ({
+                                    ...prev,
+                                    [m.providerId]: {
+                                      ...(prev[m.providerId] || {}),
+                                      [m.name]: !isChecked,
+                                    },
+                                  }));
+                                }
+                              }}
+                              className={`p-2.5 rounded-lg border text-xs flex items-center gap-2.5 transition-all select-none ${
+                                isChecked
+                                  ? "bg-emerald-50/50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 font-semibold"
+                                  : "bg-white dark:bg-neutral-850 border-neutral-200 dark:border-neutral-800 hover:border-neutral-300"
+                              } ${formModelSelectionType === "selected" ? "cursor-pointer" : "cursor-default"}`}
+                            >
+                              <div
+                                className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                                  isChecked ? "bg-emerald-600 border-emerald-600 text-white" : "border-neutral-300"
+                                }`}
+                              >
+                                {isChecked && <Check className="w-3 h-3" />}
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <div className="font-mono text-neutral-900 dark:text-white truncate">
+                                  {m.name}
+                                </div>
+                                <div className="text-[10px] font-bold" style={{ color: m.providerColor }}>
+                                  {m.providerName}
+                                </div>
+                              </div>
+
+                              <div className="relative shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setInfoOpenKey(isInfoOpen ? null : infoKey);
+                                  }}
+                                  className="w-4 h-4 rounded-full border border-neutral-300 text-neutral-400 text-[10px] font-bold flex items-center justify-center hover:text-neutral-700 cursor-pointer"
+                                  title="Model info"
+                                >
+                                  i
+                                </button>
+                                {isInfoOpen && (
+                                  <div className="absolute right-0 top-6 w-56 p-2.5 bg-neutral-900 text-white text-[11px] leading-relaxed rounded-xl shadow-xl z-30">
+                                    {getOrgModelInfoText(m.name)}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Mode B: Provider Browser (Left Providers Panel + Right Models Grid) */
+                  <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl h-[420px] flex flex-col md:flex-row overflow-hidden bg-white dark:bg-neutral-900 animate-fadeIn">
+                    {/* Left Provider Selector Panel (Width 250px) */}
+                    <div className="w-full md:w-60 shrink-0 border-r border-neutral-200 dark:border-neutral-800 bg-neutral-50/60 dark:bg-neutral-850 flex flex-col">
+                      <div className="p-2.5 border-b border-neutral-200 dark:border-neutral-800">
+                        <input
+                          type="text"
+                          value={providerListSearch}
+                          onChange={(e) => setProviderListSearch(e.target.value)}
+                          placeholder="Search 20 providers..."
+                          className="w-full h-8 px-2.5 text-xs bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 rounded-lg"
+                        />
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto divide-y divide-neutral-100 dark:divide-neutral-800/60">
+                        {ORG_CATALOG_PROVIDERS.filter((p) =>
+                          p.name.toLowerCase().includes(providerListSearch.toLowerCase())
+                        ).map((p) => {
+                          const count = countOf(p.id);
+                          const isActive = p.id === activeProviderId;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => {
+                                setActiveProviderId(p.id);
+                                setProviderModelSearch("");
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2.5 text-xs font-semibold text-left transition-colors cursor-pointer ${
+                                isActive
+                                  ? "bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white border-l-4 border-l-primary-600 shadow-2xs font-bold"
+                                  : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div
+                                  className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                                  style={{ backgroundColor: p.color }}
+                                >
+                                  {p.name[0]}
+                                </div>
+                                <span className="truncate">{p.name}</span>
+                              </div>
+
+                              <span
+                                className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${
+                                  count > 0
+                                    ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400"
+                                    : "text-neutral-400"
+                                }`}
+                              >
+                                {count > 0 ? count : p.count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Right Active Provider Models Selector Panel */}
+                    <div className="flex-1 flex flex-col min-w-0">
+                      {activeProviderObj && (
+                        <>
+                          {/* Header bar */}
+                          <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between gap-3">
+                            <div className="text-xs font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                              <span>{activeProviderObj.name}</span>
+                              <span className="text-[11px] font-normal text-neutral-400">
+                                &middot; {activeCatalogModels.length} models in catalog
+                              </span>
+                            </div>
+
+                            {formModelSelectionType === "selected" ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const nextSel = { ...(selectedByProvider[activeProviderObj.id] || {}) };
+                                    filteredActiveModels.forEach((m) => (nextSel[m] = true));
+                                    setSelectedByProvider((prev) => ({
+                                      ...prev,
+                                      [activeProviderObj.id]: nextSel,
+                                    }));
+                                  }}
+                                  className="px-2.5 py-1 text-[11px] font-bold border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 cursor-pointer"
+                                >
+                                  Select all
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedByProvider((prev) => ({
+                                      ...prev,
+                                      [activeProviderObj.id]: {},
+                                    }))
+                                  }
+                                  className="px-2.5 py-1 text-[11px] font-bold border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 text-rose-600 cursor-pointer"
+                                >
+                                  Clear
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                                &bull; All included
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Search input for provider models */}
+                          <div className="p-3 border-b border-neutral-100 dark:border-neutral-800">
+                            <input
+                              type="text"
+                              value={providerModelSearch}
+                              onChange={(e) => setProviderModelSearch(e.target.value)}
+                              placeholder={`Search ${activeProviderObj.name} models by name...`}
+                              className="w-full h-8 px-3 text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 rounded-lg"
+                            />
+                          </div>
+
+                          {/* Models grid */}
+                          <div className="p-3 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-2 flex-1 align-content-start">
+                            {filteredActiveModels.map((modelName) => {
+                              const isChecked =
+                                formModelSelectionType === "all" ||
+                                Boolean(selectedByProvider[activeProviderObj.id]?.[modelName]);
+                              const infoKey = `active-${modelName}`;
+                              const isInfoOpen = infoOpenKey === infoKey;
+
+                              return (
+                                <div
+                                  key={modelName}
+                                  onClick={() => {
+                                    if (formModelSelectionType === "selected") {
+                                      setSelectedByProvider((prev) => ({
+                                        ...prev,
+                                        [activeProviderObj.id]: {
+                                          ...(prev[activeProviderObj.id] || {}),
+                                          [modelName]: !isChecked,
+                                        },
+                                      }));
+                                    }
+                                  }}
+                                  className={`p-2.5 rounded-lg border text-xs flex items-center gap-2.5 transition-all select-none ${
+                                    isChecked
+                                      ? "bg-emerald-50/50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 font-semibold"
+                                      : "bg-white dark:bg-neutral-850 border-neutral-200 dark:border-neutral-800 hover:border-neutral-300"
+                                  } ${formModelSelectionType === "selected" ? "cursor-pointer" : "cursor-default"}`}
+                                >
+                                  <div
+                                    className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                                      isChecked ? "bg-emerald-600 border-emerald-600 text-white" : "border-neutral-300"
+                                    }`}
+                                  >
+                                    {isChecked && <Check className="w-3 h-3" />}
+                                  </div>
+
+                                  <span className="font-mono truncate flex-1 text-neutral-900 dark:text-white">
+                                    {modelName}
+                                  </span>
+
+                                  <div className="relative shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setInfoOpenKey(isInfoOpen ? null : infoKey);
+                                      }}
+                                      className="w-4 h-4 rounded-full border border-neutral-300 text-neutral-400 text-[10px] font-bold flex items-center justify-center hover:text-neutral-700 cursor-pointer"
+                                      title="Model info"
+                                    >
+                                      i
+                                    </button>
+                                    {isInfoOpen && (
+                                      <div className="absolute right-0 top-6 w-56 p-2.5 bg-neutral-900 text-white text-[11px] leading-relaxed rounded-xl shadow-xl z-30">
+                                        {getOrgModelInfoText(modelName)}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            {filteredActiveModels.length === 0 && (
+                              <div className="col-span-2 p-8 text-center text-neutral-400 text-xs">
+                                No matching models found.
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

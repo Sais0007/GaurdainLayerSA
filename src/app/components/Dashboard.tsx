@@ -24,6 +24,7 @@ import { OperationalHealthOverview } from "./dashboard/OperationalHealthOverview
 import { BudgetBurnForecastChart } from "./dashboard/BudgetBurnForecastChart";
 import { SpendBreakdownTable } from "./dashboard/SpendBreakdownTable";
 import { HourlySpendGridHeatmap } from "./dashboard/HourlySpendGridHeatmap";
+import { OverviewSummaryGrid } from "./dashboard/OverviewSummaryGrid";
 
 import { SpendBudgetDashboard } from "./dashboard/spend-budget/SpendBudgetDashboard";
 import { RequestsDashboard } from "./dashboard/requests/RequestsDashboard";
@@ -294,6 +295,7 @@ export default function Dashboard() {
               <BudgetBurnForecastChart />
               <SpendBreakdownTable onInspectTrace={handleOpenInspector} />
               <HourlySpendGridHeatmap />
+              <OverviewSummaryGrid onTabChange={setActiveTab} onInspectTrace={handleOpenInspector} />
             </div>
           )}
 

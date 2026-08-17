@@ -1,235 +1,293 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Download, 
-  RefreshCw, 
-  MoreVertical, 
-  Eye, 
-  Edit3, 
-  Pause, 
-  Play, 
-  Trash2, 
-  Copy, 
-  Check, 
-  ArrowLeft, 
-  Cpu, 
-  X, 
-  Activity, 
-  Sliders, 
-  Columns3, 
-  ArrowUpDown, 
-  ArrowUp, 
-  ArrowDown, 
-  ChevronDown, 
-  ChevronUp, 
-  FileText, 
-  DollarSign, 
-  TrendingUp, 
-  Server, 
+// src/app/components/ModelManagement.tsx
+// Master Model Management - Super Admin AI Gateway Module
+// Synchronized 1:1 with Organization Model Management.dc spec & HB Design System
+
+import React, { useState, useMemo } from "react";
+import {
+  Plus,
+  Search,
+  ChevronRight,
+  ChevronDown,
+  ArrowLeft,
+  Cpu,
   Layers,
-  AlertTriangle,
+  Sparkles,
+  Check,
+  X,
   Building2,
-  Clock,
-  ShieldCheck,
+  DollarSign,
+  Maximize2,
+  Zap,
+  Filter,
+  RefreshCw,
+  SlidersHorizontal,
+  Sliders,
   CheckCircle2,
   XCircle,
-  CopyCheck,
-  Zap,
-  Globe,
-  Database,
-  KeyRound,
-  FileSpreadsheet,
-  EyeOff,
-  BarChart3
+  AlertCircle,
+  Code2,
+  Copy,
+  Terminal,
+  Activity
 } from "lucide-react";
 import { toast } from "sonner";
-import { 
-  PageHeader, 
-  PrimaryButton, 
-  SecondaryButton, 
-  IconButton, 
-  ColumnVisibilityPanel 
-} from "./hb/listing";
+import { PageHeader } from "./hb/listing/PageHeader";
 
-// --- Model Interface ---
-// --- Model Interface ---
-export interface ModelItem {
+// --- Provider & Model Types & Catalog ---
+export interface ProviderDef {
   id: string;
-  modelId: string;
-  provider: "OpenAI" | "Anthropic" | "Azure AI" | "Google Gemini" | "DeepSeek" | "Ollama" | "Custom";
+  name: string;
+  count: number;
+  color: string;
+  addedQuota: number;
+  isCustom?: boolean;
+}
+
+export interface ModelRecord {
+  id: string;
+  shortId: string;
   name: string;
   alias: string;
-  description?: string;
-  createdBy: string;
-  createdOn: string;
-  status: "Active" | "Paused" | "Disabled";
-  healthStatus: "Healthy" | "Unhealthy" | "None";
-  errorDetails?: string;
-  lastCheck: string;
+  providerId: string;
+  providerName: string;
+  color: string;
+  status: "Active" | "Inactive";
+  health: "Healthy" | "Degraded" | "Suspended";
   lastSuccess: string;
-  // Credential & Provider Endpoint Config
-  credentialRef: string;
-  apiEndpoint?: string;
-  resourceEndpoint?: string;
-  deploymentId?: string;
-  apiVersion?: string;
-  apiKeySecret?: string;
-  orgId?: string;
-  // Dependencies for delete verification
-  dependentOrgs?: string[];
-  dependentTeams?: string[];
-  dependentKeys?: string[];
+  added: boolean;
+  contextWindow: number;
+  maxInput: number;
+  maxOutput: number;
+  inputPrice: number;
+  outputPrice: number;
+  capabilities: string[];
 }
 
-// Mock Registered KeyVault Credentials
-const MOCK_CREDENTIAL_OPTIONS = [
-  { id: "kv-openai-primary-key", name: "kv-openai-primary-key (OpenAI - Production)" },
-  { id: "kv-azure-secret-ref-882", name: "kv-azure-secret-ref-882 (Azure AI - East US)" },
-  { id: "kv-anthropic-prod-key", name: "kv-anthropic-prod-key (Anthropic - Core)" },
-  { id: "kv-deepseek-prod", name: "kv-deepseek-prod (DeepSeek Gateway)" },
-  { id: "kv-google-gemini-key", name: "kv-google-gemini-key (Google Vertex AI)" },
+const PALETTE = [
+  "#2563eb",
+  "#7c3aed",
+  "#db2777",
+  "#059669",
+  "#d97706",
+  "#0891b2",
+  "#dc2626",
+  "#4f46e5",
+  "#65a30d",
+  "#9333ea",
 ];
 
-const PROVIDER_PRESET_MODELS: Record<string, string[]> = {
-  OpenAI: ["gpt-4o", "gpt-4o-mini", "o1-preview", "text-embedding-3-large"],
-  Anthropic: ["claude-3-5-sonnet-20241022", "claude-3-haiku-20240307", "claude-3-opus-20240229"],
-  "Azure AI": ["azure-gpt-4o", "azure-gpt-4o-mini", "azure-gpt-35-turbo"],
-  "Google Gemini": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"],
-  DeepSeek: ["deepseek-r1", "deepseek-v3", "deepseek-coder"],
-  Ollama: ["llama-3.3-70b", "mistral-large", "qwen-2.5-coder"],
-  Custom: ["custom-model-01"]
+const INITIAL_PROVIDERS: ProviderDef[] = [
+  { id: "openai", name: "OpenAI", count: 65, color: "#2563eb", addedQuota: 5 },
+  { id: "anthropic", name: "Anthropic", count: 35, color: "#7c3aed", addedQuota: 5 },
+  { id: "gemini", name: "Google Gemini", count: 55, color: "#db2777", addedQuota: 5 },
+  { id: "azure", name: "Azure OpenAI", count: 50, color: "#059669", addedQuota: 5 },
+  { id: "bedrock", name: "AWS Bedrock", count: 80, color: "#d97706", addedQuota: 1 },
+  { id: "mistral", name: "Mistral AI", count: 40, color: "#0891b2", addedQuota: 1 },
+  { id: "cohere", name: "Cohere", count: 25, color: "#dc2626", addedQuota: 1 },
+  { id: "groq", name: "Groq", count: 18, color: "#4f46e5", addedQuota: 1 },
+  { id: "perplexity", name: "Perplexity", count: 12, color: "#65a30d", addedQuota: 1 },
+  { id: "deepseek", name: "DeepSeek", count: 20, color: "#9333ea", addedQuota: 1 },
+  { id: "xai", name: "xAI", count: 10, color: "#2563eb", addedQuota: 1 },
+  { id: "metaLlama", name: "Meta Llama", count: 30, color: "#7c3aed", addedQuota: 1 },
+  { id: "watsonx", name: "IBM watsonx", count: 22, color: "#db2777", addedQuota: 1 },
+  { id: "ai21", name: "AI21 Labs", count: 15, color: "#059669", addedQuota: 1 },
+  { id: "voyage", name: "Voyage AI", count: 13, color: "#d97706", addedQuota: 1 },
+  { id: "huggingface", name: "HuggingFace", count: 380, color: "#0891b2", addedQuota: 0 },
+  { id: "openrouter", name: "OpenRouter", count: 220, color: "#dc2626", addedQuota: 0 },
+  { id: "together", name: "Together AI", count: 150, color: "#4f46e5", addedQuota: 0 },
+  { id: "fireworks", name: "Fireworks AI", count: 120, color: "#65a30d", addedQuota: 0 },
+  { id: "replicate", name: "Replicate", count: 90, color: "#9333ea", addedQuota: 0 },
+];
+
+const CURATED_CATALOG: Record<string, string[]> = {
+  openai: [
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4.1-nano",
+    "gpt-3.5-turbo",
+    "o3",
+    "o3-mini",
+    "o4-mini",
+    "gpt-image-1",
+    "tts-1",
+    "tts-1-hd",
+    "whisper-1",
+    "text-embedding-3-large",
+    "text-embedding-3-small",
+  ],
+  anthropic: [
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-4-opus-20250514",
+    "claude-4-sonnet-20250514",
+    "claude-3-5-sonnet-20241022",
+    "claude-3-5-haiku-20241022",
+    "claude-3-opus-20240229",
+  ],
+  gemini: [
+    "gemini/gemini-2.5-flash",
+    "gemini/gemini-2.5-pro",
+    "gemini-pro-latest",
+    "gemini-flash-latest",
+    "gemini-flash-lite-latest",
+    "gemini-exp-1206",
+    "gemini-2.5-flash-preview-tts",
+    "gemini/gemini-3.1-flash-live-preview",
+    "gemini-embedding-001",
+  ],
+  azure: [
+    "azure/gpt-4o",
+    "azure/gpt-4o-mini",
+    "azure/gpt-4.1",
+    "azure/gpt-3.5-turbo-instruct",
+    "azure/tts-1",
+    "azure/o3-mini",
+    "azure/text-embedding-3-large",
+  ],
+  bedrock: [
+    "amazon.titan-text-express-v1",
+    "amazon.titan-embed-text-v2",
+    "anthropic.claude-3-sonnet-20240229-v1:0",
+    "anthropic.claude-3-haiku-20240307-v1:0",
+    "meta.llama3-70b-instruct-v1:0",
+    "meta.llama3-8b-instruct-v1:0",
+    "mistral.mixtral-8x7b-instruct-v0:1",
+    "cohere.command-r-plus-v1:0",
+    "ai21.jamba-instruct-v1:0",
+  ],
+  mistral: [
+    "mistral-large-latest",
+    "mistral-small-latest",
+    "mixtral-8x7b-instruct",
+    "codestral-latest",
+    "mistral-embed",
+    "pixtral-large-latest",
+  ],
+  cohere: [
+    "command-r-plus",
+    "command-r",
+    "command-light",
+    "embed-english-v3.0",
+    "rerank-english-v3.0",
+  ],
+  groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
+  perplexity: ["sonar-pro", "sonar", "sonar-reasoning", "sonar-deep-research"],
+  deepseek: ["deepseek-chat", "deepseek-reasoner", "deepseek-coder"],
+  xai: ["grok-3", "grok-3-mini", "grok-2-vision", "grok-beta"],
+  metaLlama: ["llama-3.3-70b", "llama-3.1-405b", "llama-3.1-8b", "llama-guard-3-8b"],
+  watsonx: ["granite-13b-chat-v2", "granite-20b-multilingual", "llama-3-70b-instruct"],
+  ai21: ["jamba-1.5-large", "jamba-1.5-mini", "j2-ultra"],
+  voyage: ["voyage-3", "voyage-3-lite", "voyage-code-3", "voyage-multimodal-3"],
 };
 
-// Mock Initial Models Data
-const mockModelsData: ModelItem[] = [
-  {
-    id: "mod-101",
-    modelId: "azure-gpt-4o",
-    provider: "Azure AI",
-    name: "Azure OpenAI GPT-4o",
-    alias: "azure-gpt4o-eastus",
-    description: "Enterprise Azure OpenAI GPT-4o instance hosted in East US region",
-    createdBy: "hbadmin@yopmail.com",
-    createdOn: "Jul 18, 2026",
-    status: "Active",
-    healthStatus: "Healthy",
-    errorDetails: "--",
-    lastCheck: "Jul 29, 2026 16:40",
-    lastSuccess: "Jul 29, 2026 16:40",
-    credentialRef: "kv-azure-secret-ref-882",
-    resourceEndpoint: "https://hb-gateway-eastus.openai.azure.com",
-    deploymentId: "gpt-4o-prod-01",
-    apiVersion: "2024-02-15-preview",
-    apiKeySecret: "kv-azure-secret-ref-882",
-    dependentOrgs: ["HB Enterprise"],
-    dependentTeams: ["AI Research", "Platform Engineering"],
-    dependentKeys: ["vk-finance-lead", "vk-dev-core"]
-  },
-  {
-    id: "mod-102",
-    modelId: "claude-3-5-sonnet",
-    provider: "Anthropic",
-    name: "Claude 3.5 Sonnet",
-    alias: "claude-sonnet-v2",
-    description: "Anthropic flagship model for reasoning, coding, and context comprehension",
-    createdBy: "sarah.connor@hb.com",
-    createdOn: "Jul 16, 2026",
-    status: "Active",
-    healthStatus: "Healthy",
-    errorDetails: "--",
-    lastCheck: "Jul 29, 2026 16:38",
-    lastSuccess: "Jul 29, 2026 16:38",
-    credentialRef: "kv-anthropic-prod-key",
-    apiEndpoint: "https://api.anthropic.com/v1",
-    apiKeySecret: "kv-anthropic-prod-key",
-    dependentOrgs: ["HB Enterprise"],
-    dependentTeams: ["AI Research"],
-    dependentKeys: ["vk-sarah-lead"]
-  },
-  {
-    id: "mod-103",
-    modelId: "deepseek-r1",
-    provider: "DeepSeek",
-    name: "DeepSeek R1 Reasoning",
-    alias: "deepseek-reasoner",
-    description: "Open reasoning model optimized for mathematical logic and complex step analysis",
-    createdBy: "alex.dev@hb.com",
-    createdOn: "Jul 20, 2026",
-    status: "Active",
-    healthStatus: "Unhealthy",
-    errorDetails: "Authentication Error: 401",
-    lastCheck: "Jul 29, 2026 16:45",
-    lastSuccess: "Jul 28, 2026 18:30",
-    credentialRef: "kv-deepseek-prod",
-    apiEndpoint: "https://api.deepseek.com/v1",
-    apiKeySecret: "kv-deepseek-expired-token",
-    dependentOrgs: [],
-    dependentTeams: [],
-    dependentKeys: []
-  },
-  {
-    id: "mod-104",
-    modelId: "gpt-4o",
-    provider: "OpenAI",
-    name: "GPT-4o Omnimodel",
-    alias: "primary-gpt4o",
-    description: "Multimodal standard model for core organization workflows and chat tools",
-    createdBy: "superadmin@spinecloudiq.com",
-    createdOn: "Jul 15, 2026",
-    status: "Active",
-    healthStatus: "Healthy",
-    errorDetails: "--",
-    lastCheck: "Jul 29, 2026 16:40",
-    lastSuccess: "Jul 29, 2026 16:40",
-    credentialRef: "kv-openai-primary-key",
-    apiEndpoint: "https://api.openai.com/v1",
-    orgId: "org-spinecloudiq-prod",
-    apiKeySecret: "kv-openai-primary-key",
-    dependentOrgs: ["HB Enterprise"],
-    dependentTeams: ["Product & Design"],
-    dependentKeys: []
-  },
-  {
-    id: "mod-105",
-    modelId: "llama-3-3-70b",
-    provider: "Ollama",
-    name: "Llama 3.3 70B Local",
-    alias: "llama3-local-gpu",
-    description: "Self-hosted Ollama server running Llama 3.3 70B on internal GPU cluster",
-    createdBy: "michael.scott@hb.com",
-    createdOn: "Jul 22, 2026",
-    status: "Paused",
-    healthStatus: "None",
-    errorDetails: "Connection Timeout",
-    lastCheck: "Jul 29, 2026 15:10",
-    lastSuccess: "Jul 27, 2026 12:00",
-    credentialRef: "kv-ollama-local-key",
-    apiEndpoint: "http://ollama-gpu-cluster.internal:11434",
-    dependentOrgs: [],
-    dependentTeams: [],
-    dependentKeys: []
-  }
-];
+function generateInitialModels(providers: ProviderDef[]): ModelRecord[] {
+  const HUB = new Set(["huggingface", "openrouter", "together", "fireworks", "replicate"]);
+  const SUFFIXES = ["preview", "latest", "2024-08-06", "2025-01-15", "ft-001", "turbo", "exp"];
+  const FAMILIES = [
+    "llama-3",
+    "mistral-7b",
+    "mixtral-8x7b",
+    "qwen2.5-72b",
+    "gemma-2-9b",
+    "phi-3-medium",
+    "falcon-40b",
+    "yi-34b",
+    "deepseek-v2",
+    "vicuna-13b",
+    "starcoder2-15b",
+    "codellama-34b",
+  ];
+  const ORGS = [
+    "meta-llama",
+    "mistralai",
+    "Qwen",
+    "google",
+    "microsoft",
+    "tiiuae",
+    "01-ai",
+    "deepseek-ai",
+    "lmsys",
+    "bigcode",
+  ];
+  const SIZES = ["1.3", "2.7", "7", "13", "34", "70", "8x7"];
+  const VARIANTS = ["instruct", "chat", "it", "base", "distill-awq"];
 
-// Audit Log Interface for Logs Tab
-interface AuditLogEntry {
-  id: string;
-  date: string;
-  user: string;
-  action: string;
-  ip: string;
-  status: "Success" | "Failed" | "Blocked";
-  description: string;
+  const models: ModelRecord[] = [];
+  let counter = 0;
+
+  providers.forEach((p) => {
+    const n = p.count;
+    const base = CURATED_CATALOG[p.id] || [`${p.id}-model`];
+
+    for (let i = 0; i < n; i++) {
+      let name: string;
+      if (HUB.has(p.id)) {
+        const org = ORGS[i % ORGS.length];
+        const fam = FAMILIES[(i * 3) % FAMILIES.length];
+        const size = SIZES[(i * 7) % SIZES.length];
+        const variant = VARIANTS[(i * 11) % VARIANTS.length];
+        name = `${org}/${fam.split("-")[0]}-${size}b-${variant}`;
+      } else if (i < base.length) {
+        name = base[i];
+      } else {
+        const suf = SUFFIXES[Math.floor(i / base.length - 1) % SUFFIXES.length];
+        name = `${base[i % base.length]}-${suf}`;
+      }
+
+      counter++;
+      const statusRoll = (counter * 7) % 100;
+      const status: "Active" | "Inactive" = statusRoll < 4 ? "Inactive" : "Active";
+      const health: "Healthy" | "Degraded" | "Suspended" =
+        status === "Active" ? (statusRoll < 9 ? "Degraded" : "Healthy") : "Suspended";
+
+      const CTX = [4096, 8192, 16384, 32768, 65536, 131072, 200000, 1000000];
+      const contextWindow = CTX[counter % CTX.length];
+      const maxOutput = [1024, 2048, 4096, 8192, 16384][counter % 5];
+      const maxInput = Math.max(1024, contextWindow - maxOutput);
+      const inputPrice = Math.round((((counter * 17) % 300) / 100) * 100) / 100;
+      const outputPrice = Math.round(inputPrice * (2 + (counter % 3)) * 100) / 100;
+
+      const capabilities: string[] = [];
+      if (counter % 3 === 0) capabilities.push("vision");
+      if (counter % 2 === 0) capabilities.push("function");
+      if (counter % 5 === 0) capabilities.push("json");
+      if (counter % 7 !== 0) capabilities.push("streaming");
+
+      models.push({
+        id: `${p.id}-${i}`,
+        shortId: (Math.imul(counter + 1, 2654435761) >>> 0).toString(16).padStart(8, "0"),
+        name,
+        alias: name,
+        providerId: p.id,
+        providerName: p.name,
+        color: p.color,
+        status,
+        health,
+        lastSuccess: `${String(1 + (counter % 28)).padStart(2, "0")}/${String(
+          1 + ((counter * 3) % 12)
+        ).padStart(2, "0")}/2026`,
+        added: i < p.addedQuota,
+        contextWindow,
+        maxInput,
+        maxOutput,
+        inputPrice,
+        outputPrice,
+        capabilities,
+      });
+    }
+  });
+
+  return models;
 }
 
-const mockAuditLogs: AuditLogEntry[] = [
-  { id: "log-1", date: "Jul 29, 2026 16:40:12", user: "hbadmin@yopmail.com", action: "Model Test Call", ip: "192.168.1.104", status: "Success", description: "Executed health check verification probe (120ms latency)" },
-  { id: "log-2", date: "Jul 29, 2026 16:38:05", user: "sarah.connor@hb.com", action: "Config Update", ip: "10.0.4.18", status: "Success", description: "Updated provider credentials" },
-  { id: "log-3", date: "Jul 28, 2026 18:30:00", user: "alex.dev@hb.com", action: "Auth Failure", ip: "172.16.0.42", status: "Failed", description: "API Key rejected by upstream DeepSeek gateway (401 Unauthorized)" },
-  { id: "log-4", date: "Jul 25, 2026 10:00:00", user: "superadmin@spinecloudiq.com", action: "Model Registered", ip: "10.0.2.1", status: "Success", description: "Initial model registered in platform registry" }
-];
+function formatContext(n: number): string {
+  if (n >= 1000000) return `${n / 1000000}M`;
+  if (n >= 1000) return `${Math.round(n / 1000)}K`;
+  return String(n);
+}
 
 export interface ModelManagementProps {
   hideHeader?: boolean;
@@ -237,1494 +295,1338 @@ export interface ModelManagementProps {
   orgId?: string;
 }
 
-export function ModelManagement({ hideHeader = false, orgName, orgId }: ModelManagementProps) {
-  const [models, setModels] = useState<ModelItem[]>(mockModelsData);
-  const [viewState, setViewState] = useState<"list" | "detail" | "form">("list");
-  const [activeTab, setActiveTab] = useState<"models" | "health">("models");
-  const [selectedModel, setSelectedModel] = useState<ModelItem | null>(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+export function ModelManagement({ hideHeader = false }: ModelManagementProps) {
+  // Main State
+  const [providers, setProviders] = useState<ProviderDef[]>(INITIAL_PROVIDERS);
+  const [models, setModels] = useState<ModelRecord[]>(() => generateInitialModels(INITIAL_PROVIDERS));
 
-  // Search & Filter State
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
-  const [showSummary, setShowSummary] = useState(true);
+  // Navigation View: "list" | "add" | "detail"
+  const [view, setView] = useState<"list" | "add" | "detail">("list");
+  const [detailModelId, setDetailModelId] = useState<string | null>(null);
 
-  // Filter Fields State
-  const [filterProvider, setFilterProvider] = useState("All");
-  const [filterStatus, setFilterStatus] = useState("All");
-  const [filterStartDate, setFilterStartDate] = useState("");
-  const [filterEndDate, setFilterEndDate] = useState("");
-  const [filterType, setFilterType] = useState("All");
-  const [filterCreatedBy, setFilterCreatedBy] = useState("All");
+  // Listing Filters & Search
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [providerFilterIds, setProviderFilterIds] = useState<Record<string, boolean>>({});
+  const [priceFilter, setPriceFilter] = useState<string>("all");
+  const [priceOutFilter, setPriceOutFilter] = useState<string>("all");
+  const [contextFilter, setContextFilter] = useState<string>("all");
+  const [openFacet, setOpenFacet] = useState<string | null>(null);
+  const [providerFilterSearch, setProviderFilterSearch] = useState("");
 
-  // Selection & Action Menu state
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  // Table Sorting & Pagination
+  const [sortKey, setSortKey] = useState<keyof ModelRecord>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
 
-  // Sorting state
-  const [sortField, setSortField] = useState<keyof ModelItem>("name");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  // Add Model Wizard State
+  const [addStep, setAddStep] = useState<number>(0);
+  const [addProviderId, setAddProviderId] = useState<string | null>(null);
+  const [addSearch, setAddSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
+  const [aliasPattern, setAliasPattern] = useState("{model}");
+  const [aliasOverrides, setAliasOverrides] = useState<Record<string, string>>({});
+  
+  // Custom Provider State inside Add Model
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  const [customProviderName, setCustomProviderName] = useState("");
+  const [manualModelInput, setManualModelInput] = useState("");
+  const [manualModelNames, setManualModelNames] = useState<string[]>([]);
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // Calculate Statistics
+  const addedModels = useMemo(() => models.filter((m) => m.added), [models]);
+  const statTotal = addedModels.length;
+  const statActive = useMemo(() => addedModels.filter((m) => m.status === "Active").length, [addedModels]);
+  const statInactive = useMemo(() => addedModels.filter((m) => m.status === "Inactive").length, [addedModels]);
+  const statProviders = useMemo(() => new Set(addedModels.map((m) => m.providerId)).size, [addedModels]);
+  const statCatalog = models.length;
+  const statAllProviders = providers.length;
 
-  // Column Visibility Panel State
-  const [showColumnPanel, setShowColumnPanel] = useState(false);
-  const columnAnchorRef = useRef<HTMLDivElement>(null);
-  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
-    modelId: true,
-    provider: true,
-    name: true,
-    alias: true,
-    credential: true,
-    status: true,
-    lastSuccess: true,
-    createdOn: true,
-  });
+  // Active Facet Filters
+  const activeProviderFilterList = useMemo(
+    () => Object.keys(providerFilterIds).filter((k) => providerFilterIds[k]),
+    [providerFilterIds]
+  );
+  const hasActiveFilters = Boolean(
+    search ||
+      statusFilter !== "all" ||
+      activeProviderFilterList.length > 0 ||
+      priceFilter !== "all" ||
+      priceOutFilter !== "all" ||
+      contextFilter !== "all"
+  );
 
-  // Modal Dialog States
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showStatusModal, setShowStatusModal] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [targetModel, setTargetModel] = useState<ModelItem | null>(null);
-
-  // View Model Tab State
-  const [detailTab, setDetailTab] = useState<"overview" | "configuration" | "logs">("overview");
-  const [logsSearchQuery, setLogsSearchQuery] = useState("");
-  const [logsActionFilter, setLogsActionFilter] = useState("All");
-
-  // --- Form State (Add / Edit Page) ---
-  const [formProvider, setFormProvider] = useState<ModelItem["provider"]>("OpenAI");
-  const [formName, setFormName] = useState("");
-  const [formAlias, setFormAlias] = useState("");
-  const [formDescription, setFormDescription] = useState("");
-  const [formStatus, setFormStatus] = useState<ModelItem["status"]>("Active");
-
-  // Credential Selection Form State
-  const [formCredentialMode, setFormCredentialMode] = useState<"existing" | "new">("existing");
-  const [formCredentialRef, setFormCredentialRef] = useState("kv-openai-primary-key");
-  const [formApiEndpoint, setFormApiEndpoint] = useState("");
-  const [formResourceEndpoint, setFormResourceEndpoint] = useState("");
-  const [formDeploymentId, setFormDeploymentId] = useState("");
-  const [formApiVersion, setFormApiVersion] = useState("");
-  const [formApiKeySecret, setFormApiKeySecret] = useState("");
-  const [formOrgId, setFormOrgId] = useState("");
-
-  const [formTouched, setFormTouched] = useState(false);
-
-  // Copy Helper
-  const handleCopyText = (text: string, label: string = "Copied to clipboard!") => {
-    navigator.clipboard.writeText(text);
-    toast.success(label);
+  const resetFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setProviderFilterIds({});
+    setPriceFilter("all");
+    setPriceOutFilter("all");
+    setContextFilter("all");
+    setPage(1);
+    setOpenFacet(null);
+    toast.success("Filters reset to default.");
   };
 
-  // KPI Calculations
-  const kpiStats = useMemo(() => {
-    const total = models.length;
-    const active = models.filter((m) => m.status === "Active").length;
-    const healthy = models.filter((m) => m.healthStatus === "Healthy").length;
-    const paused = models.filter((m) => m.status === "Paused" || m.status === "Disabled").length;
-
-    return [
-      { id: "tot", label: "Total Models", value: total.toString(), subValue: `${active} Active in Gateway` },
-      { id: "act", label: "Active Models", value: active.toString(), subValue: "80% Routing Traffic" },
-      { id: "hea", label: "Healthy Models", value: healthy.toString(), subValue: `${models.filter(m => m.healthStatus === "Unhealthy").length} Unhealthy Alerts` },
-      { id: "pau", label: "Paused Models", value: paused.toString(), subValue: "Serving Suspended" },
-    ];
-  }, [models]);
-
-  // Filtered Models
+  // Filtered & Sorted Table Rows
   const filteredModels = useMemo(() => {
-    return models.filter((m) => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch = 
-        !q ||
-        m.name.toLowerCase().includes(q) ||
-        m.alias.toLowerCase().includes(q) ||
-        m.provider.toLowerCase().includes(q) ||
-        m.modelId.toLowerCase().includes(q);
+    const CONTEXT_MIN: Record<string, number> = {
+      all: 0,
+      "8k": 8192,
+      "32k": 32768,
+      "128k": 131072,
+      "1m": 1000000,
+    };
+    const contextMin = CONTEXT_MIN[contextFilter] || 0;
 
-      const matchesProvider = filterProvider === "All" || m.provider === filterProvider;
-      const matchesStatus = filterStatus === "All" || m.status === filterStatus;
-      const matchesCreatedBy = filterCreatedBy === "All" || m.createdBy === filterCreatedBy;
+    const PRICE_MAX: Record<string, number> = {
+      all: Infinity,
+      u1: 1,
+      u3: 3,
+      u10: 10,
+      o10: Infinity,
+    };
+    const priceMax = PRICE_MAX[priceFilter] ?? Infinity;
+    const priceMin = priceFilter === "o10" ? 10 : 0;
 
-      return matchesSearch && matchesProvider && matchesStatus && matchesCreatedBy;
-    });
-  }, [models, searchQuery, filterProvider, filterStatus, filterCreatedBy]);
+    const priceOutMax = PRICE_MAX[priceOutFilter] ?? Infinity;
+    const priceOutMin = priceOutFilter === "o10" ? 10 : 0;
 
-  // Sorted Models
-  const sortedModels = useMemo(() => {
-    return [...filteredModels].sort((a, b) => {
-      let aVal: any = a[sortField];
-      let bVal: any = b[sortField];
+    const s = search.toLowerCase();
 
-      if (typeof aVal === "string") {
-        aVal = aVal.toLowerCase();
-        bVal = (bVal || "").toLowerCase();
-      }
+    return addedModels
+      .filter((m) => {
+        const matchesSearch =
+          !s ||
+          m.name.toLowerCase().includes(s) ||
+          m.providerName.toLowerCase().includes(s) ||
+          m.alias.toLowerCase().includes(s);
+        const matchesStatus = statusFilter === "all" || m.status === statusFilter;
+        const matchesProvider =
+          activeProviderFilterList.length === 0 || activeProviderFilterList.includes(m.providerId);
+        const matchesContext = m.contextWindow >= contextMin;
+        const matchesPriceIn = m.inputPrice >= priceMin && m.inputPrice <= priceMax;
+        const matchesPriceOut = m.outputPrice >= priceOutMin && m.outputPrice <= priceOutMax;
 
-      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [filteredModels, sortField, sortDirection]);
+        return (
+          matchesSearch &&
+          matchesStatus &&
+          matchesProvider &&
+          matchesContext &&
+          matchesPriceIn &&
+          matchesPriceOut
+        );
+      })
+      .sort((a, b) => {
+        let av = a[sortKey] ?? "";
+        let bv = b[sortKey] ?? "";
+        if (typeof av === "string") av = av.toLowerCase();
+        if (typeof bv === "string") bv = bv.toLowerCase();
 
-  // Paginated Models
-  const paginatedModels = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return sortedModels.slice(start, start + pageSize);
-  }, [sortedModels, currentPage, pageSize]);
+        const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+  }, [
+    addedModels,
+    search,
+    statusFilter,
+    activeProviderFilterList,
+    contextFilter,
+    priceFilter,
+    priceOutFilter,
+    sortKey,
+    sortDir,
+  ]);
 
-  // Table Sort Handler
-  const handleSort = (field: keyof ModelItem) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+  const totalPages = Math.max(1, Math.ceil(filteredModels.length / pageSize));
+  const currentPageModels = useMemo(
+    () => filteredModels.slice((page - 1) * pageSize, page * pageSize),
+    [filteredModels, page, pageSize]
+  );
+
+  const handleSort = (key: keyof ModelRecord) => {
+    if (sortKey === key) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
-      setSortField(field);
-      setSortDirection("asc");
+      setSortKey(key);
+      setSortDir("asc");
     }
   };
 
-  const renderSortIndicator = (field: keyof ModelItem) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="w-3.5 h-3.5 opacity-0 group-hover:opacity-60 transition-opacity" />;
+  // Add Model Handlers
+  const handleOpenAdd = () => {
+    setView("add");
+    setAddStep(0);
+    setAddProviderId(null);
+    setAddSearch("");
+    setSelectedIds({});
+    setAliasOverrides({});
+    setAliasPattern("{model}");
+    setShowCustomForm(false);
+    setCustomProviderName("");
+    setManualModelInput("");
+    setManualModelNames([]);
+  };
+
+  const handleCreateCustomProvider = () => {
+    const trimmed = customProviderName.trim();
+    if (!trimmed) return;
+    const id = `custom-${trimmed.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
+    const color = PALETTE[(providers.length) % PALETTE.length];
+    const newProv: ProviderDef = {
+      id,
+      name: trimmed,
+      count: 0,
+      color,
+      addedQuota: 0,
+      isCustom: true,
+    };
+    setProviders((prev) => [...prev, newProv]);
+    setShowCustomForm(false);
+    setCustomProviderName("");
+    setAddProviderId(id);
+    setAddStep(1);
+    setManualModelNames([]);
+    setManualModelInput("");
+    toast.success(`Custom provider "${trimmed}" created.`);
+  };
+
+  const handleAddManualModel = () => {
+    const trimmed = manualModelInput.trim();
+    if (!trimmed) return;
+    if (!manualModelNames.includes(trimmed)) {
+      setManualModelNames((prev) => [...prev, trimmed]);
     }
-    return sortDirection === "asc" ? (
-      <ArrowUp className="w-3.5 h-3.5 text-primary-600 dark:text-primary-400 font-bold" />
-    ) : (
-      <ArrowDown className="w-3.5 h-3.5 text-primary-600 dark:text-primary-400 font-bold" />
-    );
+    setManualModelInput("");
   };
 
-  // Open Add Page
-  const handleOpenCreatePage = () => {
-    setIsEditMode(false);
-    setSelectedModel(null);
-    setFormProvider("OpenAI");
-    setFormName("");
-    setFormAlias("");
-    setFormDescription("");
-    setFormStatus("Active");
-    setFormCredentialMode("existing");
-    setFormCredentialRef("kv-openai-primary-key");
-    setFormApiEndpoint("https://api.openai.com/v1");
-    setFormResourceEndpoint("");
-    setFormDeploymentId("");
-    setFormApiVersion("");
-    setFormApiKeySecret("");
-    setFormOrgId("");
-    setFormTouched(false);
-    setViewState("form");
+  const handleRemoveManualModel = (name: string) => {
+    setManualModelNames((prev) => prev.filter((n) => n !== name));
   };
 
-  // Open Edit Page
-  const handleOpenEditPage = (model: ModelItem) => {
-    setSelectedModel(model);
-    setIsEditMode(true);
-    setFormProvider(model.provider);
-    setFormName(model.name);
-    setFormAlias(model.alias);
-    setFormDescription(model.description || "");
-    setFormStatus(model.status);
-    setFormCredentialMode(model.credentialRef ? "existing" : "new");
-    setFormCredentialRef(model.credentialRef || "kv-openai-primary-key");
-    setFormApiEndpoint(model.apiEndpoint || "");
-    setFormResourceEndpoint(model.resourceEndpoint || "");
-    setFormDeploymentId(model.deploymentId || "");
-    setFormApiVersion(model.apiVersion || "");
-    setFormApiKeySecret(model.apiKeySecret || "");
-    setFormOrgId(model.orgId || "");
-    setFormTouched(false);
-    setViewState("form");
+  const applyPattern = (modelName: string, providerId: string) => {
+    const pattern = aliasPattern || "{model}";
+    return pattern.replace(/{model}/g, modelName).replace(/{provider}/g, providerId);
   };
 
-  // Save Model Submission Handler
-  const handleSaveModelSubmit = () => {
-    setFormTouched(true);
-    if (!formName.trim() || !formAlias.trim()) {
-      toast.error("Please fill in all required fields.");
-      return;
-    }
+  const handleSaveModel = () => {
+    const chosenProvider = providers.find((p) => p.id === addProviderId);
+    if (!chosenProvider) return;
 
-    const selectedCredential = formCredentialMode === "existing" ? formCredentialRef : (formApiKeySecret || "kv-custom-secret-key");
-
-    if (isEditMode && selectedModel) {
-      const updatedModel: ModelItem = {
-        ...selectedModel,
-        provider: formProvider,
-        name: formName.trim(),
-        alias: formAlias.trim(),
-        description: formDescription.trim(),
-        status: formStatus,
-        credentialRef: selectedCredential,
-        apiEndpoint: formApiEndpoint,
-        resourceEndpoint: formResourceEndpoint,
-        deploymentId: formDeploymentId,
-        apiVersion: formApiVersion,
-        apiKeySecret: formApiKeySecret,
-        orgId: formOrgId,
-      };
-
-      setModels((prev) => prev.map((m) => (m.id === selectedModel.id ? updatedModel : m)));
-      setSelectedModel(updatedModel);
-      toast.success(`Model "${updatedModel.name}" updated successfully!`);
-      setViewState("detail");
+    if (chosenProvider.isCustom) {
+      let counter = models.length;
+      manualModelNames.forEach((name) => {
+        counter++;
+        const alias = aliasOverrides[`custom-${name}`] || applyPattern(name, chosenProvider.id);
+        const newModel: ModelRecord = {
+          id: `${chosenProvider.id}-${name}`,
+          shortId: (Math.imul(counter + 1, 2654435761) >>> 0).toString(16).padStart(8, "0"),
+          name,
+          alias,
+          providerId: chosenProvider.id,
+          providerName: chosenProvider.name,
+          color: chosenProvider.color,
+          status: "Active",
+          health: "Healthy",
+          lastSuccess: "Today",
+          added: true,
+          contextWindow: 128000,
+          maxInput: 120000,
+          maxOutput: 8192,
+          inputPrice: 2.5,
+          outputPrice: 10.0,
+          capabilities: ["function", "streaming", "json"],
+        };
+        setModels((prev) => [...prev, newModel]);
+        chosenProvider.count += 1;
+      });
+      toast.success(`Added ${manualModelNames.length} models for ${chosenProvider.name}`);
     } else {
-      const newModelId = formAlias.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
-      const newModel: ModelItem = {
-        id: `mod-${Date.now()}`,
-        modelId: newModelId,
-        provider: formProvider,
-        name: formName.trim(),
-        alias: formAlias.trim(),
-        description: formDescription.trim(),
-        createdBy: "hbadmin@yopmail.com",
-        createdOn: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
-        status: formStatus,
-        healthStatus: "Healthy",
-        errorDetails: "--",
-        lastCheck: "Just now",
-        lastSuccess: "Just now",
-        credentialRef: selectedCredential,
-        apiEndpoint: formApiEndpoint,
-        resourceEndpoint: formResourceEndpoint,
-        deploymentId: formDeploymentId,
-        apiVersion: formApiVersion,
-        apiKeySecret: formApiKeySecret,
-        orgId: formOrgId,
-        dependentOrgs: [],
-        dependentTeams: [],
-        dependentKeys: []
-      };
-
-      setModels((prev) => [newModel, ...prev]);
-      setSelectedModel(newModel);
-      toast.success(`Model "${newModel.name}" registered successfully!`);
-      setViewState("detail");
-    }
-  };
-
-  // Toggle Status Handler
-  const handleConfirmToggleStatus = () => {
-    if (!targetModel) return;
-    const newStatus = targetModel.status === "Active" ? "Paused" : "Active";
-    setModels((prev) =>
-      prev.map((m) => (m.id === targetModel.id ? { ...m, status: newStatus } : m))
-    );
-    if (selectedModel?.id === targetModel.id) {
-      setSelectedModel((prev) => (prev ? { ...prev, status: newStatus } : null));
-    }
-    toast.success(`Model "${targetModel.name}" is now ${newStatus}.`);
-    setShowStatusModal(false);
-    setTargetModel(null);
-  };
-
-  // Delete Model Handler
-  const handleConfirmDelete = () => {
-    if (!targetModel) return;
-    setModels((prev) => prev.filter((m) => m.id !== targetModel.id));
-    toast.success(`Model "${targetModel.name}" deleted.`);
-    setShowDeleteModal(false);
-    setTargetModel(null);
-    if (viewState === "detail") {
-      setViewState("list");
-      setSelectedModel(null);
-    }
-  };
-
-  // CSV Export Handler
-  const handleExportCSV = () => {
-    const headers = ["Model ID", "Provider", "Model Name", "Model Alias", "Created By", "Created On", "Input Cost", "Output Cost", "Status", "Health Status"];
-    const rows = filteredModels.map((m) => [
-      `"${m.modelId}"`,
-      `"${m.provider}"`,
-      `"${m.name.replace(/"/g, '""')}"`,
-      `"${m.alias}"`,
-      `"${m.createdBy}"`,
-      `"${m.createdOn}"`,
-      `"${m.inputCost}"`,
-      `"${m.outputCost}"`,
-      `"${m.status}"`,
-      `"${m.healthStatus}"`
-    ]);
-
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `models_export_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    toast.success("Exported Models dataset to CSV");
-    setShowExportModal(false);
-  };
-
-  // Render Provider Badge Pill
-  const renderProviderBadge = (provider: ModelItem["provider"]) => {
-    return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">
-        <Cpu className="w-3 h-3 text-primary-600" />
-        {provider}
-      </span>
-    );
-  };
-
-  // Render Health Status Badge
-  const renderHealthBadge = (health: ModelItem["healthStatus"]) => {
-    if (health === "Healthy") {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-          Healthy
-        </span>
+      let addedCount = 0;
+      setModels((prev) =>
+        prev.map((m) => {
+          if (m.providerId === chosenProvider.id && selectedIds[m.id]) {
+            addedCount++;
+            return {
+              ...m,
+              added: true,
+              status: "Active",
+              health: "Healthy",
+              alias: aliasOverrides[m.id] || applyPattern(m.name, chosenProvider.id),
+            };
+          }
+          return m;
+        })
       );
+      toast.success(`Onboarded ${addedCount} models for ${chosenProvider.name}`);
     }
-    if (health === "Unhealthy") {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-          <XCircle className="w-3 h-3 text-rose-600" />
-          Unhealthy
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-neutral-100 dark:bg-neutral-800 text-neutral-500 border border-neutral-200 dark:border-neutral-700">
-        ● None
-      </span>
-    );
+
+    setView("list");
   };
 
-  // Render Status Badge
-  const renderStatusBadge = (status: ModelItem["status"]) => {
-    if (status === "Active") {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/50">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          Active
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/50">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-        {status}
-      </span>
-    );
-  };
+  // Detail View Model
+  const detailModel = useMemo(
+    () => (detailModelId ? models.find((m) => m.id === detailModelId) : null),
+    [models, detailModelId]
+  );
 
   return (
-    <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-6">
-      
-      {/* ========================================================================= */}
-      {/* VIEW 1: MODELS LISTING TABLE & HEALTH TAB                                */}
-      {/* ========================================================================= */}
-      {viewState === "list" && (
-        <div className="space-y-6 animate-fadeIn">
-          {/* Action Toolbar (Matching Reference Card Container) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 shadow-2xs">
-            <div className="flex items-center gap-2 flex-1">
-              <div className="relative flex-1 min-w-[200px] max-w-md">
+    <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-6 animate-fadeIn">
+      {/* 1. LISTING VIEW */}
+      {view === "list" && (
+        <div className="space-y-6">
+          {/* Header with + Add Model action button in top right */}
+          {!hideHeader && (
+            <PageHeader pageId="model-management" action="list">
+              <button
+                type="button"
+                onClick={handleOpenAdd}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-bold transition-all shadow-xs shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Model</span>
+              </button>
+            </PageHeader>
+          )}
+
+          {/* 4 Summary / KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Card 1: Total Providers */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-xs">
+              <span className="text-xs font-semibold text-neutral-400 block mb-1">Total Providers</span>
+              <div className="text-2xl font-bold text-neutral-900 dark:text-white font-mono">{statAllProviders}</div>
+              <span className="text-[11px] text-neutral-500 mt-1 block">{statProviders} with onboarded models</span>
+            </div>
+
+            {/* Card 2: Total Models */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-xs">
+              <span className="text-xs font-semibold text-neutral-400 block mb-1">Total Models</span>
+              <div className="text-2xl font-bold text-neutral-900 dark:text-white font-mono">{statTotal}</div>
+              <span className="text-[11px] text-neutral-500 mt-1 block">of {statCatalog} in catalog</span>
+            </div>
+
+            {/* Card 3: Active Models */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-xs">
+              <span className="text-xs font-semibold text-neutral-400 block mb-1">Active Models</span>
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">{statActive}</div>
+              <span className="text-[11px] text-neutral-500 mt-1 block">Routing Traffic</span>
+            </div>
+
+            {/* Card 4: Inactive Models */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-xs">
+              <span className="text-xs font-semibold text-neutral-400 block mb-1">Inactive Models</span>
+              <div className="text-2xl font-bold text-rose-600 dark:text-rose-400 font-mono">{statInactive}</div>
+              <span className="text-[11px] text-neutral-500 mt-1 block">Serving Suspended</span>
+            </div>
+          </div>
+
+          {/* Search & Main Filter Controls */}
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              {/* Search Bar */}
+              <div className="relative flex-1">
                 <input
                   type="text"
-                  placeholder="Search models..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-9 pl-9 pr-8 text-xs bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search by model, alias, ID or provider..."
+                  className="w-full h-10 pl-10 pr-4 text-xs bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:outline-hidden transition-all text-neutral-900 dark:text-white"
                 />
-                <Search className="w-4 h-4 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                {searchQuery && (
-                  <button type="button" onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
+
+              {/* Status Filter Dropdown */}
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="h-10 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs font-semibold text-neutral-800 dark:text-neutral-200 focus:ring-2 focus:ring-primary-500 focus:outline-hidden"
+              >
+                <option value="all">All statuses</option>
+                <option value="Active">Active only</option>
+                <option value="Inactive">Inactive only</option>
+              </select>
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* Filter Button */}
+            {/* Facet Filter Popover Pills */}
+            <div className="flex flex-wrap items-center gap-2.5 pt-1 border-t border-neutral-100 dark:border-neutral-800 relative z-20">
+              
+              {/* 1. Providers Facet Dropdown */}
               <div className="relative">
-                <IconButton
-                  icon={Filter}
-                  label="Filter"
-                  onClick={() => setShowFilterDrawer(true)}
-                  title="Filter Models"
-                />
-                {(filterProvider !== "All" || filterStatus !== "All" || filterCreatedBy !== "All") && (
-                  <span className="w-2 h-2 rounded-full bg-primary-600 absolute top-1 right-1" />
-                )}
-              </div>
-
-              {/* Customize Columns Button */}
-              <div className="relative" ref={columnAnchorRef}>
-                <IconButton
-                  icon={Columns3}
-                  label="Customize Columns"
-                  onClick={() => setShowColumnPanel(!showColumnPanel)}
-                  title="Customize Table Columns"
-                />
-                {showColumnPanel && (
-                  <ColumnVisibilityPanel
-                    columns={[
-                      { key: "modelId", label: "Model ID" },
-                      { key: "provider", label: "Provider" },
-                      { key: "name", label: "Model Name" },
-                      { key: "alias", label: "Model Alias" },
-                      { key: "credential", label: "Credential" },
-                      { key: "status", label: "Status" },
-                      { key: "lastSuccess", label: "Last Success" },
-                      { key: "createdOn", label: "Created Date" },
-                    ]}
-                    visibleColumns={visibleColumns}
-                    onChangeColumnVisibility={(key, isVisible) =>
-                      setVisibleColumns((prev) => ({ ...prev, [key]: isVisible }))
-                    }
-                    onResetToDefault={() =>
-                      setVisibleColumns({
-                        modelId: true,
-                        provider: true,
-                        name: true,
-                        alias: true,
-                        credential: true,
-                        status: true,
-                        lastSuccess: true,
-                        createdOn: true,
-                      })
-                    }
-                    onClose={() => setShowColumnPanel(false)}
-                  />
-                )}
-              </div>
-
-              {/* Export Button */}
-              <IconButton icon={Download} label="Export" onClick={() => setShowExportModal(true)} title="Export Models" />
-
-              {/* Refresh Button */}
-              <IconButton icon={RefreshCw} label="Refresh" onClick={() => toast.success("Refreshed models list")} title="Refresh Models Data" />
-
-              {/* Hide / Show Summary Cards Toggle Button */}
-              <IconButton
-                icon={showSummary ? EyeOff : BarChart3}
-                label={showSummary ? "Hide Summary" : "Show Summary"}
-                onClick={() => setShowSummary(!showSummary)}
-                title={showSummary ? "Collapse KPI Summary Cards" : "Expand KPI Summary Cards"}
-              />
-
-              {/* Action Button: Add Model or Run Checks */}
-              {activeTab === "models" ? (
-                <PrimaryButton icon={Plus} onClick={handleOpenCreatePage}>
-                  Add Model
-                </PrimaryButton>
-              ) : (
-                <PrimaryButton icon={Zap} onClick={() => toast.success("Executed health check across all provider gateways!")}>
-                  Run All Checks
-                </PrimaryButton>
-              )}
-            </div>
-          </div>
-
-          {/* KPI Cards Grid (Toggleable via Hide Summary Icon Button) */}
-          {showSummary && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-300 animate-fadeIn">
-              {kpiStats.map((kpi) => (
-                <div
-                  key={kpi.id}
-                  className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-2xs hover:shadow-md transition-all"
+                <button
+                  type="button"
+                  onClick={() => setOpenFacet(openFacet === "providers" ? null : "providers")}
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    activeProviderFilterList.length > 0
+                      ? "bg-primary-50 dark:bg-primary-950/60 border-primary-500 text-primary-600 dark:text-primary-400"
+                      : "bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50"
+                  }`}
                 >
-                  <div className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
-                    {kpi.label}
-                  </div>
-                  <div className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">
-                    {kpi.value}
-                  </div>
-                  <div className="text-[11px] font-medium text-neutral-400 mt-1">
-                    {kpi.subValue}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                  <span>Providers{activeProviderFilterList.length > 0 ? ` (${activeProviderFilterList.length})` : ""}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
+                </button>
 
-          {/* Horizontal Tabs: Models vs Health Status */}
-          <div className="border-b border-neutral-200 dark:border-neutral-800">
-            <div className="flex gap-6 text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setActiveTab("models")}
-                className={`py-3 border-b-2 flex items-center gap-2 transition-colors ${
-                  activeTab === "models"
-                    ? "border-primary-600 text-primary-600 dark:text-primary-400 font-bold"
-                    : "border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-white"
-                }`}
-              >
-                <Cpu className="w-4 h-4" />
-                <span>Models</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
-                  {models.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("health")}
-                className={`py-3 border-b-2 flex items-center gap-2 transition-colors ${
-                  activeTab === "health"
-                    ? "border-primary-600 text-primary-600 dark:text-primary-400 font-bold"
-                    : "border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-white"
-                }`}
-              >
-                <Activity className="w-4 h-4" />
-                <span>Health Status</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              </button>
-            </div>
-          </div>
-
-          {/* TAB 1: MODELS LISTING TABLE */}
-          {activeTab === "models" && (
-            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-neutral-50/80 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 font-semibold text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
-                      <th className="py-3 px-4 w-10">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.size > 0 && selectedIds.size === paginatedModels.length}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedIds(new Set(paginatedModels.map((m) => m.id)));
-                            } else {
-                              setSelectedIds(new Set());
-                            }
+                {openFacet === "providers" && (
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl p-3 z-30 space-y-2.5 animate-fadeIn">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Providers</span>
+                      {activeProviderFilterList.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProviderFilterIds({});
+                            setPage(1);
                           }}
-                          className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
-                        />
-                      </th>
-                      {visibleColumns.modelId && (
-                        <th onClick={() => handleSort("modelId")} className="py-3 px-4 cursor-pointer select-none group">
-                          <div className="flex items-center gap-1.5">
-                            <span>Model ID</span>
-                            {renderSortIndicator("modelId")}
-                          </div>
-                        </th>
-                      )}
-                      {visibleColumns.provider && <th className="py-3 px-4">Provider</th>}
-                      {visibleColumns.name && (
-                        <th onClick={() => handleSort("name")} className="py-3 px-4 cursor-pointer select-none group">
-                          <div className="flex items-center gap-1.5">
-                            <span>Model Name</span>
-                            {renderSortIndicator("name")}
-                          </div>
-                        </th>
-                      )}
-                      {visibleColumns.alias && <th className="py-3 px-4">Model Alias</th>}
-                      {visibleColumns.credential && <th className="py-3 px-4">Credential Reference</th>}
-                      {visibleColumns.status && <th className="py-3 px-4">Status</th>}
-                      {visibleColumns.lastSuccess && <th className="py-3 px-4">Last Success</th>}
-                      {visibleColumns.createdOn && <th className="py-3 px-4">Created Date</th>}
-                      <th className="py-3 px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/80 text-neutral-800 dark:text-neutral-200">
-                    {paginatedModels.length === 0 ? (
-                      <tr>
-                        <td colSpan={10} className="py-12 text-center text-neutral-400 space-y-3">
-                          <Cpu className="w-10 h-10 mx-auto text-neutral-300 dark:text-neutral-700 stroke-1" />
-                          <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">No Models Found</div>
-                          <p className="text-xs max-w-sm mx-auto">No model configurations match your search or filter selection.</p>
-                          <PrimaryButton icon={Plus} onClick={handleOpenCreatePage}>
-                            Add Model
-                          </PrimaryButton>
-                        </td>
-                      </tr>
-                    ) : (
-                      paginatedModels.map((item) => {
-                        const isSelected = selectedIds.has(item.id);
-                        const isMenuOpen = activeMenuId === item.id;
-                        return (
-                          <tr
-                            key={item.id}
-                            className={`hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40 transition-colors ${
-                              isSelected ? "bg-primary-50/30 dark:bg-primary-950/20" : ""
-                            }`}
-                          >
-                            <td className="py-3 px-4">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  const next = new Set(selectedIds);
-                                  if (e.target.checked) next.add(item.id);
-                                  else next.delete(item.id);
-                                  setSelectedIds(next);
-                                }}
-                                className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
-                              />
-                            </td>
-
-                            {/* Model ID */}
-                            {visibleColumns.modelId && (
-                              <td className="py-3.5 px-4 font-mono text-xs font-semibold text-neutral-900 dark:text-white whitespace-nowrap">
-                                <div className="flex items-center gap-1.5">
-                                  <span>{item.modelId}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyText(item.modelId, "Copied Model ID!")}
-                                    className="text-neutral-400 hover:text-primary-600"
-                                    title="Copy Model ID"
-                                  >
-                                    <Copy className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              </td>
-                            )}
-
-                            {/* Provider */}
-                            {visibleColumns.provider && (
-                              <td className="py-3.5 px-4 whitespace-nowrap">
-                                {renderProviderBadge(item.provider)}
-                              </td>
-                            )}
-
-                            {/* Model Name */}
-                            {visibleColumns.name && (
-                              <td className="py-3.5 px-4 font-semibold text-neutral-900 dark:text-white whitespace-nowrap">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedModel(item);
-                                    setViewState("detail");
-                                  }}
-                                  className="hover:text-primary-600 hover:underline cursor-pointer text-left"
-                                >
-                                  {item.name}
-                                </button>
-                              </td>
-                            )}
-
-                            {/* Model Alias */}
-                            {visibleColumns.alias && (
-                              <td className="py-3.5 px-4 font-mono text-[11px] text-neutral-500 whitespace-nowrap">
-                                &lt;{item.alias}&gt;
-                              </td>
-                            )}
-
-                            {/* Credential Reference */}
-                            {visibleColumns.credential && (
-                              <td className="py-3.5 px-4 font-mono text-[11px] text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
-                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
-                                  <KeyRound className="w-3 h-3 text-amber-500" />
-                                  {item.credentialRef || item.apiKeySecret || "kv-default-key"}
-                                </span>
-                              </td>
-                            )}
-
-                            {/* Status */}
-                            {visibleColumns.status && (
-                              <td className="py-3.5 px-4 whitespace-nowrap">
-                                {renderStatusBadge(item.status)}
-                              </td>
-                            )}
-
-                            {/* Last Success */}
-                            {visibleColumns.lastSuccess && (
-                              <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap font-mono text-[11px]">
-                                {item.lastSuccess || "Just now"}
-                              </td>
-                            )}
-
-                            {/* Created On */}
-                            {visibleColumns.createdOn && (
-                              <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">
-                                {item.createdOn}
-                              </td>
-                            )}
-
-                            {/* Actions Dropdown Menu */}
-                            <td className="py-3.5 px-4 text-right whitespace-nowrap relative">
-                              <button
-                                type="button"
-                                onClick={() => setActiveMenuId(isMenuOpen ? null : item.id)}
-                                className="p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-500 transition-colors"
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-
-                              {isMenuOpen && (
-                                <div className="absolute right-4 top-10 w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl z-30 text-xs py-1 animate-fadeIn">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveMenuId(null);
-                                      setSelectedModel(item);
-                                      setViewState("detail");
-                                    }}
-                                    className="w-full px-3.5 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800 flex items-center gap-2 text-neutral-700 dark:text-neutral-300"
-                                  >
-                                    <Eye className="w-3.5 h-3.5 text-neutral-500" />
-                                    <span>View Model</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveMenuId(null);
-                                      handleOpenEditPage(item);
-                                    }}
-                                    className="w-full px-3.5 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800 flex items-center gap-2 text-neutral-700 dark:text-neutral-300"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5 text-neutral-500" />
-                                    <span>Edit Model</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveMenuId(null);
-                                      setTargetModel(item);
-                                      setShowStatusModal(true);
-                                    }}
-                                    className="w-full px-3.5 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800 flex items-center gap-2 text-neutral-700 dark:text-neutral-300"
-                                  >
-                                    {item.status === "Active" ? <Pause className="w-3.5 h-3.5 text-amber-500" /> : <Play className="w-3.5 h-3.5 text-emerald-500" />}
-                                    <span>{item.status === "Active" ? "Pause Model" : "Enable Model"}</span>
-                                  </button>
-
-                                  <hr className="my-1 border-neutral-100 dark:border-neutral-800" />
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveMenuId(null);
-                                      setTargetModel(item);
-                                      setShowDeleteModal(true);
-                                    }}
-                                    className="w-full px-3.5 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2 text-rose-600 font-medium"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                    <span>Delete</span>
-                                  </button>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Table Footer Pagination */}
-              <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-                <div className="text-neutral-500 font-medium">
-                  Showing <span className="font-semibold text-neutral-900 dark:text-white">{sortedModels.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span> to{" "}
-                  <span className="font-semibold text-neutral-900 dark:text-white">{Math.min(currentPage * pageSize, sortedModels.length)}</span> of{" "}
-                  <span className="font-semibold text-neutral-900 dark:text-white">{sortedModels.length}</span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 text-neutral-500">
-                    <span>Rows per page:</span>
-                    <select
-                      value={pageSize}
-                      onChange={(e) => {
-                        setPageSize(Number(e.target.value));
-                        setCurrentPage(1);
-                      }}
-                      className="h-8 px-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg text-xs"
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      className="px-2.5 py-1 rounded-lg border border-neutral-200 dark:border-neutral-800 disabled:opacity-40 hover:bg-neutral-50"
-                    >
-                      Previous
-                    </button>
-                    <span className="px-3 py-1 font-semibold text-primary-600 bg-primary-50 rounded-lg dark:bg-primary-950/50">
-                      {currentPage}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={currentPage * pageSize >= sortedModels.length}
-                      onClick={() => setCurrentPage((p) => p + 1)}
-                      className="px-2.5 py-1 rounded-lg border border-neutral-200 dark:border-neutral-800 disabled:opacity-40 hover:bg-neutral-50"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: HEALTH STATUS TABLE */}
-          {activeTab === "health" && (
-            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-neutral-50/80 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 font-semibold text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
-                      <th className="py-3 px-4">Model Name</th>
-                      <th className="py-3 px-4">Model ID</th>
-                      <th className="py-3 px-4">Health Status</th>
-                      <th className="py-3 px-4">Error Details</th>
-                      <th className="py-3 px-4">Last Check</th>
-                      <th className="py-3 px-4">Last Success</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800 text-neutral-800 dark:text-neutral-200">
-                    {models.map((m) => (
-                      <tr key={m.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40">
-                        <td className="py-3.5 px-4 font-semibold flex items-center gap-2 whitespace-nowrap">
-                          <Cpu className="w-4 h-4 text-primary-600" />
-                          <span>{m.name}</span>
-                        </td>
-                        <td className="py-3.5 px-4 font-mono text-[11px] text-neutral-500 whitespace-nowrap">
-                          {m.modelId}
-                        </td>
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          {renderHealthBadge(m.healthStatus)}
-                        </td>
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          {m.healthStatus === "Unhealthy" ? (
-                            <span className="font-mono text-rose-600 font-medium">{m.errorDetails}</span>
-                          ) : (
-                            <span className="text-neutral-400">--</span>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">{m.lastCheck}</td>
-                        <td className="py-3.5 px-4 text-neutral-500 whitespace-nowrap">{m.lastSuccess}</td>
-                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => toast.success(`Executed Health Check probe for ${m.name}`)}
-                              className="px-2.5 py-1 text-[11px] font-semibold text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 dark:bg-primary-950/50"
-                            >
-                              Run Check
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* VIEW 2: DEDICATED ADD / EDIT MODEL PAGE (NOT A MODAL)                      */}
-{/* ========================================================================= */}
-      {/* VIEW 2: ADD / EDIT MODEL PAGE (SUPER ADMIN MODEL REGISTRY)                 */}
-      {/* ========================================================================= */}
-      {viewState === "form" && (
-        <div className="space-y-6 animate-fadeIn pb-12 max-w-4xl mx-auto">
-          {/* Back Navigation */}
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => {
-                if (isEditMode && selectedModel) {
-                  setViewState("detail");
-                } else {
-                  setViewState("list");
-                }
-              }}
-              className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Model Management</span>
-            </button>
-          </div>
-
-          <div>
-            <h1 className="text-xl font-bold text-neutral-900 dark:text-white tracking-tight">
-              {isEditMode ? "Edit Model" : "Add Model"}
-            </h1>
-            <p className="text-xs text-neutral-500 mt-1">
-              Register AI provider models to make them available across your platform gateway.
-            </p>
-          </div>
-
-          <form onSubmit={(e) => { e.preventDefault(); handleSaveModelSubmit(); }} className="space-y-6">
-            
-            {/* 1. Basic Model Information */}
-            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
-              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
-                <h3 className="font-bold text-sm text-neutral-900 dark:text-white flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-primary-600" />
-                  Basic Model Information
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-                {/* Provider Selection */}
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Provider <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={formProvider}
-                    onChange={(e) => {
-                      const newProv = e.target.value as ModelItem["provider"];
-                      setFormProvider(newProv);
-                      const presets = PROVIDER_PRESET_MODELS[newProv];
-                      if (presets && presets.length > 0 && !formName) {
-                        setFormName(presets[0]);
-                        setFormAlias(presets[0]);
-                      }
-                    }}
-                    className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="OpenAI">OpenAI</option>
-                    <option value="Anthropic">Anthropic</option>
-                    <option value="Azure AI">Azure OpenAI</option>
-                    <option value="Google Gemini">Google Gemini</option>
-                    <option value="DeepSeek">DeepSeek</option>
-                    <option value="Ollama">Ollama (Self-Hosted)</option>
-                    <option value="Custom">Custom Provider</option>
-                  </select>
-                </div>
-
-                {/* Model Selection / Custom Model Name */}
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Model Name <span className="text-rose-500">*</span>
-                  </label>
-                  {PROVIDER_PRESET_MODELS[formProvider] ? (
-                    <div className="space-y-2">
-                      <select
-                        value={PROVIDER_PRESET_MODELS[formProvider].includes(formName) ? formName : "custom"}
-                        onChange={(e) => {
-                          if (e.target.value !== "custom") {
-                            setFormName(e.target.value);
-                            setFormAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"));
-                          }
-                        }}
-                        className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500"
-                      >
-                        {PROVIDER_PRESET_MODELS[formProvider].map((preset) => (
-                          <option key={preset} value={preset}>{preset}</option>
-                        ))}
-                        <option value="custom">+ Specify Custom Model Name</option>
-                      </select>
-                      {(!PROVIDER_PRESET_MODELS[formProvider].includes(formName)) && (
-                        <input
-                          type="text"
-                          value={formName}
-                          onChange={(e) => {
-                            setFormName(e.target.value);
-                            setFormAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"));
-                          }}
-                          placeholder="e.g. gpt-4o-2024-11-20"
-                          className="w-full h-9 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                        />
+                          className="text-[11px] font-bold text-primary-600 hover:underline"
+                        >
+                          Clear
+                        </button>
                       )}
                     </div>
-                  ) : (
                     <input
                       type="text"
-                      value={formName}
-                      onChange={(e) => setFormName(e.target.value)}
-                      placeholder="e.g. gpt-4o"
-                      className={`w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border rounded-lg text-xs font-medium ${
-                        formTouched && !formName.trim() ? "border-rose-500 bg-rose-50/20" : "border-neutral-300 dark:border-neutral-700"
-                      }`}
+                      value={providerFilterSearch}
+                      onChange={(e) => setProviderFilterSearch(e.target.value)}
+                      placeholder="Filter providers..."
+                      className="w-full h-8 px-2.5 text-xs bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-900 dark:text-white"
                     />
-                  )}
-                </div>
-
-                {/* Model Alias */}
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Model Alias <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formAlias}
-                    onChange={(e) => setFormAlias(e.target.value)}
-                    placeholder="e.g. primary-gpt4o"
-                    className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                  />
-                </div>
-
-                {/* Status */}
-                <div className="space-y-1.5">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Status
-                  </label>
-                  <select
-                    value={formStatus}
-                    onChange={(e) => setFormStatus(e.target.value as ModelItem["status"])}
-                    className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Paused">Paused</option>
-                    <option value="Disabled">Disabled</option>
-                  </select>
-                </div>
-
-                {/* Description */}
-                <div className="space-y-1.5 md:col-span-2">
-                  <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                    Description <span className="text-neutral-400 font-normal">(Optional)</span>
-                  </label>
-                  <textarea
-                    value={formDescription}
-                    onChange={(e) => setFormDescription(e.target.value)}
-                    rows={2}
-                    placeholder="Describe the intended capability or provider routing..."
-                    className="w-full p-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-medium resize-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* 2. Credential Selection */}
-            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-2xs space-y-5">
-              <div className="pb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
-                <h3 className="font-bold text-sm text-neutral-900 dark:text-white flex items-center gap-2">
-                  <KeyRound className="w-4 h-4 text-amber-500" />
-                  Credential Selection
-                </h3>
-              </div>
-
-              <div className="space-y-4 text-xs">
-                {/* Credential Mode Radio Buttons */}
-                <div className="flex items-center gap-6 p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-200 dark:border-neutral-700">
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-neutral-800 dark:text-neutral-200">
-                    <input
-                      type="radio"
-                      name="credentialMode"
-                      checked={formCredentialMode === "existing"}
-                      onChange={() => setFormCredentialMode("existing")}
-                      className="w-4 h-4 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span>Select Existing Credential</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-neutral-800 dark:text-neutral-200">
-                    <input
-                      type="radio"
-                      name="credentialMode"
-                      checked={formCredentialMode === "new"}
-                      onChange={() => setFormCredentialMode("new")}
-                      className="w-4 h-4 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span>Configure New Credential</span>
-                  </label>
-                </div>
-
-                {formCredentialMode === "existing" ? (
-                  <div className="space-y-1.5">
-                    <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                      Select Registered KeyVault Credential <span className="text-rose-500">*</span>
-                    </label>
-                    <select
-                      value={formCredentialRef}
-                      onChange={(e) => setFormCredentialRef(e.target.value)}
-                      className="w-full h-10 px-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-mono font-medium"
-                    >
-                      {MOCK_CREDENTIAL_OPTIONS.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-                    <div className="space-y-1.5 md:col-span-2">
-                      <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                        API Key Secret Reference / Name <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={formApiKeySecret}
-                        onChange={(e) => setFormApiKeySecret(e.target.value)}
-                        placeholder="e.g. kv-custom-openai-secret"
-                        className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                      />
+                    <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                      {providers
+                        .filter((p) => p.name.toLowerCase().includes(providerFilterSearch.toLowerCase()))
+                        .map((p) => {
+                          const checked = Boolean(providerFilterIds[p.id]);
+                          const count = models.filter((m) => m.providerId === p.id && m.added).length;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => {
+                                setProviderFilterIds((prev) => ({ ...prev, [p.id]: !prev[p.id] }));
+                                setPage(1);
+                              }}
+                              className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                                checked ? "bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 font-bold" : "hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${checked ? "bg-primary-600 border-primary-600 text-white" : "border-neutral-300"}`}>
+                                  {checked && <Check className="w-2.5 h-2.5" />}
+                                </div>
+                                <span className="truncate">{p.name}</span>
+                              </div>
+                              <span className="text-[10px] font-mono text-neutral-400">{count}</span>
+                            </button>
+                          );
+                        })}
                     </div>
-
-                    {formProvider === "Azure AI" && (
-                      <>
-                        <div className="space-y-1.5">
-                          <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                            Resource Endpoint URL
-                          </label>
-                          <input
-                            type="text"
-                            value={formResourceEndpoint}
-                            onChange={(e) => setFormResourceEndpoint(e.target.value)}
-                            placeholder="https://resource.openai.azure.com"
-                            className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                            Deployment ID
-                          </label>
-                          <input
-                            type="text"
-                            value={formDeploymentId}
-                            onChange={(e) => setFormDeploymentId(e.target.value)}
-                            placeholder="gpt-4o-prod-01"
-                            className="w-full h-10 px-3.5 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {formProvider !== "Azure AI" && (
-                      <div className="space-y-1.5 md:col-span-2">
-                        <label className="block font-semibold text-neutral-800 dark:text-neutral-200">
-                          Base Endpoint URL <span className="text-neutral-400 font-normal">(Optional Override)</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={formApiEndpoint}
-                          onChange={(e) => setFormApiEndpoint(e.target.value)}
-                          placeholder="https://api.openai.com/v1"
-                          className="w-full h-10 px-3.5 font-mono bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs"
-                        />
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
+
+              {/* 2. Price In Facet Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenFacet(openFacet === "priceIn" ? null : "priceIn")}
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    priceFilter !== "all"
+                      ? "bg-primary-50 dark:bg-primary-950/60 border-primary-500 text-primary-600 dark:text-primary-400"
+                      : "bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50"
+                  }`}
+                >
+                  <span>Price In{priceFilter !== "all" ? `: ${priceFilter}` : ""}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
+                </button>
+
+                {openFacet === "priceIn" && (
+                  <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl p-3 z-30 space-y-1 animate-fadeIn">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-2">Input $/1M</span>
+                    {[
+                      { id: "all", label: "Any" },
+                      { id: "u1", label: "Under $1" },
+                      { id: "u3", label: "Under $3" },
+                      { id: "u10", label: "Under $10" },
+                      { id: "o10", label: "$10+" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setPriceFilter(opt.id);
+                          setPage(1);
+                          setOpenFacet(null);
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                          priceFilter === opt.id ? "bg-neutral-100 dark:bg-neutral-800 font-bold text-neutral-900 dark:text-white" : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50"
+                        }`}
+                      >
+                        <div className={`w-3 h-3 rounded-full border ${priceFilter === opt.id ? "border-primary-600 bg-primary-600" : "border-neutral-400"}`} />
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Price Out Facet Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenFacet(openFacet === "priceOut" ? null : "priceOut")}
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    priceOutFilter !== "all"
+                      ? "bg-primary-50 dark:bg-primary-950/60 border-primary-500 text-primary-600 dark:text-primary-400"
+                      : "bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50"
+                  }`}
+                >
+                  <span>Price Out{priceOutFilter !== "all" ? `: ${priceOutFilter}` : ""}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
+                </button>
+
+                {openFacet === "priceOut" && (
+                  <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl p-3 z-30 space-y-1 animate-fadeIn">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-2">Output $/1M</span>
+                    {[
+                      { id: "all", label: "Any" },
+                      { id: "u1", label: "Under $1" },
+                      { id: "u3", label: "Under $3" },
+                      { id: "u10", label: "Under $10" },
+                      { id: "o10", label: "$10+" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setPriceOutFilter(opt.id);
+                          setPage(1);
+                          setOpenFacet(null);
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                          priceOutFilter === opt.id ? "bg-neutral-100 dark:bg-neutral-800 font-bold text-neutral-900 dark:text-white" : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50"
+                        }`}
+                      >
+                        <div className={`w-3 h-3 rounded-full border ${priceOutOutFilter === opt.id ? "border-primary-600 bg-primary-600" : "border-neutral-400"}`} />
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 4. Context Facet Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenFacet(openFacet === "context" ? null : "context")}
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    contextFilter !== "all"
+                      ? "bg-primary-50 dark:bg-primary-950/60 border-primary-500 text-primary-600 dark:text-primary-400"
+                      : "bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50"
+                  }`}
+                >
+                  <span>Context{contextFilter !== "all" ? `: ${contextFilter}` : ""}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
+                </button>
+
+                {openFacet === "context" && (
+                  <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl p-3 z-30 space-y-1 animate-fadeIn">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-2">Context Window</span>
+                    {[
+                      { id: "all", label: "Any" },
+                      { id: "8k", label: "8K+" },
+                      { id: "32k", label: "32K+" },
+                      { id: "128k", label: "128K+" },
+                      { id: "1m", label: "1M+" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setContextFilter(opt.id);
+                          setPage(1);
+                          setOpenFacet(null);
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                          contextFilter === opt.id ? "bg-neutral-100 dark:bg-neutral-800 font-bold text-neutral-900 dark:text-white" : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50"
+                        }`}
+                      >
+                        <div className={`w-3 h-3 rounded-full border ${contextFilter === opt.id ? "border-primary-600 bg-primary-600" : "border-neutral-400"}`} />
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Reset Filters Button */}
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="px-3 py-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 flex items-center gap-1 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reset filters</span>
+                </button>
+              )}
             </div>
 
-            {/* Action Bar */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-200 dark:border-neutral-800">
-              <SecondaryButton
-                onClick={() => {
-                  if (isEditMode && selectedModel) setViewState("detail");
-                  else setViewState("list");
-                }}
-              >
-                Cancel
-              </SecondaryButton>
-              <PrimaryButton type="submit">
-                {isEditMode ? "Save Model" : "Add Model"}
-              </PrimaryButton>
+            {/* Backdrop click to close facet popover */}
+            {openFacet && (
+              <div className="fixed inset-0 z-10" onClick={() => setOpenFacet(null)} />
+            )}
+          </div>
+
+          {/* Model Table */}
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-neutral-50 dark:bg-neutral-800/60 border-b border-neutral-200 dark:border-neutral-800 text-neutral-400 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">
+                    <th onClick={() => handleSort("name")} className="py-3 px-4 cursor-pointer hover:text-neutral-900 dark:hover:text-white select-none">
+                      MODEL {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th onClick={() => handleSort("providerName")} className="py-3 px-4 cursor-pointer hover:text-neutral-900 dark:hover:text-white select-none">
+                      PROVIDER {sortKey === "providerName" && (sortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th onClick={() => handleSort("contextWindow")} className="py-3 px-4 cursor-pointer hover:text-neutral-900 dark:hover:text-white select-none">
+                      CONTEXT {sortKey === "contextWindow" && (sortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th onClick={() => handleSort("maxInput")} className="py-3 px-4 cursor-pointer hover:text-neutral-900 dark:hover:text-white select-none">
+                      MAX IN {sortKey === "maxInput" && (sortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th onClick={() => handleSort("maxOutput")} className="py-3 px-4 cursor-pointer hover:text-neutral-900 dark:hover:text-white select-none">
+                      MAX OUT {sortKey === "maxOutput" && (sortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th onClick={() => handleSort("inputPrice")} className="py-3 px-4 cursor-pointer hover:text-neutral-900 dark:hover:text-white select-none">
+                      IN $/1M {sortKey === "inputPrice" && (sortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th onClick={() => handleSort("outputPrice")} className="py-3 px-4 cursor-pointer hover:text-neutral-900 dark:hover:text-white select-none">
+                      OUT $/1M {sortKey === "outputPrice" && (sortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th onClick={() => handleSort("status")} className="py-3 px-4 cursor-pointer hover:text-neutral-900 dark:hover:text-white select-none">
+                      STATUS {sortKey === "status" && (sortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800 text-neutral-800 dark:text-neutral-200">
+                  {currentPageModels.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-neutral-400">
+                        No models found matching the selected filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    currentPageModels.map((row) => (
+                      <tr
+                        key={row.id}
+                        onClick={() => {
+                          setDetailModelId(row.id);
+                          setView("detail");
+                        }}
+                        className="hover:bg-neutral-50/80 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors"
+                      >
+                        {/* Model Name */}
+                        <td className="py-3.5 px-4 font-mono font-bold text-neutral-900 dark:text-white whitespace-nowrap">
+                          {row.name}
+                        </td>
+
+                        {/* Provider Badge */}
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="px-2.5 py-1 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-semibold text-[11px]">
+                            {row.providerName}
+                          </span>
+                        </td>
+
+                        {/* Context */}
+                        <td className="py-3.5 px-4 font-mono text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
+                          {formatContext(row.contextWindow)}
+                        </td>
+
+                        {/* Max In */}
+                        <td className="py-3.5 px-4 font-mono text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
+                          {formatContext(row.maxInput)}
+                        </td>
+
+                        {/* Max Out */}
+                        <td className="py-3.5 px-4 font-mono text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
+                          {formatContext(row.maxOutput)}
+                        </td>
+
+                        {/* In Price */}
+                        <td className="py-3.5 px-4 font-mono text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
+                          ${row.inputPrice.toFixed(2)}
+                        </td>
+
+                        {/* Out Price */}
+                        <td className="py-3.5 px-4 font-mono text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
+                          ${row.outputPrice.toFixed(2)}
+                        </td>
+
+                        {/* Status Badge */}
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span
+                            className={`px-3 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1.5 ${
+                              row.status === "Active"
+                                ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                                : "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                            }`}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                            {row.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
 
-          </form>
+            {/* Pagination Footer */}
+            <div className="px-6 py-4 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between text-xs text-neutral-500">
+              <span>
+                Page {page} of {totalPages} &middot; {filteredModels.length} models
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 disabled:opacity-40 font-semibold hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                >
+                  Prev
+                </button>
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-3 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 disabled:opacity-40 font-semibold hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* VIEW 3: DEDICATED VIEW MODEL DETAIL PAGE                                  */}
-      {/* ========================================================================= */}
-      {viewState === "detail" && selectedModel && (
-        <div className="space-y-6 animate-fadeIn pb-12">
-          {/* Back Navigation Button */}
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => setViewState("list")}
-              className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Model Management</span>
-            </button>
+      {/* 2. ADD MODEL WIZARD VIEW */}
+      {view === "add" && (
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Back Navigation Link */}
+          <button
+            type="button"
+            onClick={() => setView("list")}
+            className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Master Model Management</span>
+          </button>
 
-            <div className="flex items-center gap-2">
-              <SecondaryButton icon={Edit3} onClick={() => handleOpenEditPage(selectedModel)}>
-                Edit Model
-              </SecondaryButton>
-              <SecondaryButton
-                icon={selectedModel.status === "Active" ? Pause : Play}
-                onClick={() => {
-                  setTargetModel(selectedModel);
-                  setShowStatusModal(true);
-                }}
-              >
-                {selectedModel.status === "Active" ? "Pause" : "Enable"}
-              </SecondaryButton>
-              <button
-                type="button"
-                onClick={() => {
-                  setTargetModel(selectedModel);
-                  setShowDeleteModal(true);
-                }}
-                className="px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg border border-rose-200 transition-colors"
-              >
-                Delete
-              </button>
-            </div>
+          {/* 3-Step Wizard Indicator */}
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4 shadow-xs flex items-center gap-4">
+            {[
+              { step: 0, label: "Provider" },
+              { step: 1, label: "Models" },
+              { step: 2, label: "Aliases" },
+            ].map((st, idx) => {
+              const isDone = addStep > st.step;
+              const isActive = addStep === st.step;
+              return (
+                <React.Fragment key={st.step}>
+                  <div
+                    onClick={() => isDone && setAddStep(st.step)}
+                    className={`flex items-center gap-3 cursor-pointer ${isDone ? "opacity-100" : isActive ? "opacity-100" : "opacity-50"}`}
+                  >
+                    <div
+                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                        isDone
+                          ? "bg-primary-600 text-white"
+                          : isActive
+                          ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900"
+                          : "bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400"
+                      }`}
+                    >
+                      {isDone ? <Check className="w-4 h-4" /> : st.step + 1}
+                    </div>
+                    <span className={`text-xs font-bold ${isActive ? "text-neutral-900 dark:text-white" : "text-neutral-500"}`}>
+                      {st.label}
+                    </span>
+                  </div>
+                  {idx < 2 && <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />}
+                </React.Fragment>
+              );
+            })}
           </div>
 
-          {/* Model Header Details Card */}
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-xs space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-neutral-100 dark:border-neutral-800">
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-neutral-900 dark:text-white">
-                    {selectedModel.name}
-                  </h2>
-                  {renderStatusBadge(selectedModel.status)}
-                  {renderProviderBadge(selectedModel.provider)}
+          {/* STEP 1: CHOOSE A PROVIDER */}
+          {addStep === 0 && (
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-xs space-y-6">
+              <div>
+                <h2 className="text-base font-bold text-neutral-900 dark:text-white">Choose a provider</h2>
+                <p className="text-xs text-neutral-500 mt-1">
+                  {statAllProviders} providers &middot; {statCatalog} models in the full catalog. Pick one to browse its models.
+                </p>
+              </div>
+
+              {/* Action Toolbar: Search + Custom Provider Button */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={addSearch}
+                    onChange={(e) => setAddSearch(e.target.value)}
+                    placeholder="Search providers..."
+                    className="w-full h-10 pl-10 pr-4 text-xs bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:outline-hidden"
+                  />
+                  <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 </div>
-                <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-500 font-mono">
-                  <div className="flex items-center gap-1.5">
-                    <span>Model ID:</span>
-                    <span className="font-semibold text-neutral-800 dark:text-neutral-200">{selectedModel.modelId}</span>
-                    <button type="button" onClick={() => handleCopyText(selectedModel.modelId, "Copied Model ID!")}>
-                      <Copy className="w-3.5 h-3.5 text-neutral-400 hover:text-primary-600" />
+
+                <button
+                  type="button"
+                  onClick={() => setShowCustomForm(!showCustomForm)}
+                  className="px-4 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-bold transition-all shadow-xs shrink-0 whitespace-nowrap"
+                >
+                  + Add custom provider
+                </button>
+              </div>
+
+              {/* Inline Custom Provider Form */}
+              {showCustomForm && (
+                <div className="bg-neutral-50 dark:bg-neutral-800/60 border-2 border-primary-500 rounded-2xl p-5 space-y-3 animate-fadeIn">
+                  <h4 className="text-xs font-bold text-neutral-900 dark:text-white">New provider</h4>
+                  <p className="text-xs text-neutral-500">
+                    For providers not in our catalog yet — e.g. an on-prem LMStudio, vLLM, or Ollama endpoint. You'll add its models manually on the next step.
+                  </p>
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={customProviderName}
+                      onChange={(e) => setCustomProviderName(e.target.value)}
+                      placeholder="Provider name (e.g. LMStudio)"
+                      className="flex-1 h-9 px-3 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomForm(false)}
+                      className="px-3.5 py-2 text-xs font-bold text-neutral-600 hover:text-neutral-900"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!customProviderName.trim()}
+                      onClick={handleCreateCustomProvider}
+                      className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl"
+                    >
+                      Create &amp; Continue
                     </button>
                   </div>
-                  <div>Created By: <span className="text-neutral-700 dark:text-neutral-300 font-sans font-semibold">{selectedModel.createdBy}</span></div>
-                  <div>Created On: <span className="text-neutral-700 dark:text-neutral-300 font-sans font-semibold">{selectedModel.createdOn}</span></div>
                 </div>
-              </div>
-            </div>
+              )}
 
-            {/* Detail Tabs Header */}
-            <div className="border-b border-neutral-200 dark:border-neutral-800">
-              <div className="flex gap-6 text-xs font-semibold">
-                {(["overview", "configuration", "logs"] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setDetailTab(t)}
-                    className={`py-2.5 border-b-2 capitalize transition-colors ${
-                      detailTab === t
-                        ? "border-primary-600 text-primary-600 dark:text-primary-400 font-bold"
-                        : "border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-white"
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
+              {/* Provider Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[420px] overflow-y-auto pr-1">
+                {providers
+                  .filter((p) => p.name.toLowerCase().includes(addSearch.toLowerCase()))
+                  .map((p) => {
+                    const isSelected = p.id === addProviderId;
+                    const addedCount = models.filter((m) => m.providerId === p.id && m.added).length;
+                    const availableCount = p.isCustom ? 0 : p.count - addedCount;
 
-            {/* TAB CONTENT: OVERVIEW */}
-            {detailTab === "overview" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs pt-2">
-                {/* Card 1: Model Information */}
-                <div className="bg-neutral-50/50 dark:bg-neutral-800/30 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-3">
-                  <h4 className="font-bold text-sm text-neutral-900 dark:text-white pb-2 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2">
-                    <Cpu className="w-4 h-4 text-primary-600" />
-                    Model Information
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between"><span className="text-neutral-400">Model Name:</span><span className="font-semibold text-neutral-900 dark:text-white">{selectedModel.name}</span></div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Model Alias:</span><span className="font-mono text-neutral-800 dark:text-neutral-200">&lt;{selectedModel.alias}&gt;</span></div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Provider:</span><span className="font-semibold">{selectedModel.provider}</span></div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Health Status:</span>{renderHealthBadge(selectedModel.healthStatus)}</div>
-                    <div className="flex justify-between"><span className="text-neutral-400">Last Success:</span><span className="font-mono text-neutral-700 dark:text-neutral-300">{selectedModel.lastSuccess || "Just now"}</span></div>
-                  </div>
-                </div>
-
-                {/* Card 2: Credential & Endpoint Information */}
-                <div className="bg-neutral-50/50 dark:bg-neutral-800/30 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 space-y-3">
-                  <h4 className="font-bold text-sm text-neutral-900 dark:text-white pb-2 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2">
-                    <KeyRound className="w-4 h-4 text-amber-500" />
-                    Credential & Endpoint Reference
-                  </h4>
-                  <div className="space-y-2 font-mono">
-                    <div className="flex justify-between"><span className="text-neutral-400 font-sans">Credential Reference:</span><span className="font-semibold text-amber-600 dark:text-amber-400">{selectedModel.credentialRef || selectedModel.apiKeySecret || "N/A"}</span></div>
-                    <div className="flex justify-between"><span className="text-neutral-400 font-sans">API / Base Endpoint:</span><span className="text-neutral-700 dark:text-neutral-300 truncate max-w-[200px]">{selectedModel.apiEndpoint || selectedModel.resourceEndpoint || "Default Provider URL"}</span></div>
-                    {selectedModel.deploymentId && <div className="flex justify-between"><span className="text-neutral-400 font-sans">Deployment ID:</span><span>{selectedModel.deploymentId}</span></div>}
-                    {selectedModel.apiVersion && <div className="flex justify-between"><span className="text-neutral-400 font-sans">API Version:</span><span>{selectedModel.apiVersion}</span></div>}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB CONTENT: CONFIGURATION */}
-            {detailTab === "configuration" && (
-              <div className="p-5 bg-neutral-50/50 dark:bg-neutral-800/30 border border-neutral-200 dark:border-neutral-800 rounded-xl text-xs space-y-4">
-                <h4 className="font-bold text-sm text-neutral-900 dark:text-white border-b pb-2">Read-Only Provider Settings</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 font-mono">
-                  <div><span className="text-neutral-400 block text-[10px]">CREDENTIAL REF</span>{selectedModel.credentialRef || "kv-default-key"}</div>
-                  <div><span className="text-neutral-400 block text-[10px]">API ENDPOINT</span>{selectedModel.apiEndpoint || selectedModel.resourceEndpoint || "Default"}</div>
-                  <div><span className="text-neutral-400 block text-[10px]">DEPLOYMENT ID</span>{selectedModel.deploymentId || "Standard"}</div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB CONTENT: LOGS */}
-            {detailTab === "logs" && (
-              <div className="space-y-4 pt-2">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <div className="relative w-full sm:w-64">
-                      <input
-                        type="text"
-                        placeholder="Search model logs..."
-                        value={logsSearchQuery}
-                        onChange={(e) => setLogsSearchQuery(e.target.value)}
-                        className="w-full h-9 pl-9 pr-3 text-xs bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg"
-                      />
-                      <Search className="w-4 h-4 text-neutral-400 absolute left-2.5 top-2.5" />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <IconButton icon={Download} label="Export" onClick={() => toast.success("Exported audit logs to CSV")} />
-                    <IconButton icon={RefreshCw} label="Refresh" onClick={() => toast.success("Refreshed logs")} />
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xs overflow-hidden">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-neutral-50/80 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 font-semibold text-neutral-600 dark:text-neutral-400">
-                        <th className="py-3 px-4">Date & Time</th>
-                        <th className="py-3 px-4">User</th>
-                        <th className="py-3 px-4">Action</th>
-                        <th className="py-3 px-4">IP Address</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4">Description</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                      {mockAuditLogs.map((l) => (
-                        <tr key={l.id} className="hover:bg-neutral-50/60 dark:hover:bg-neutral-800/30">
-                          <td className="py-3 px-4 font-mono text-[11px] text-neutral-500">{l.date}</td>
-                          <td className="py-3 px-4 font-medium text-neutral-900 dark:text-white">{l.user}</td>
-                          <td className="py-3 px-4 font-semibold text-primary-600">{l.action}</td>
-                          <td className="py-3 px-4 font-mono text-[11px] text-neutral-500">{l.ip}</td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                              l.status === "Success" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
-                            }`}>
-                              {l.status}
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => setAddProviderId(p.id)}
+                        className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                          isSelected
+                            ? "bg-primary-50/50 dark:bg-primary-950/40 border-primary-500 shadow-md"
+                            : "bg-white dark:bg-neutral-850 border-neutral-200 dark:border-neutral-800 hover:border-neutral-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-xs"
+                            style={{ backgroundColor: p.color }}
+                          >
+                            {p.name[0]}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-xs font-bold text-neutral-900 dark:text-white truncate">{p.name}</h4>
+                            <span className="text-[11px] text-neutral-400 block mt-0.5">
+                              {availableCount} available &middot; {addedCount} onboarded
                             </span>
-                          </td>
-                          <td className="py-3 px-4 text-neutral-600 dark:text-neutral-400">{l.description}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* ========================================================================= */}
-      {/* DELETE CONFIRMATION MODAL WITH DEPENDENCY WARNING                         */}
-      {/* ========================================================================= */}
-      {showDeleteModal && targetModel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
-            {/* Check if model has active dependencies */}
-            {((targetModel.dependentOrgs && targetModel.dependentOrgs.length > 0) ||
-              (targetModel.dependentTeams && targetModel.dependentTeams.length > 0) ||
-              (targetModel.dependentKeys && targetModel.dependentKeys.length > 0)) ? (
-              <>
-                <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
-                  <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 flex items-center justify-center shrink-0">
-                    <AlertTriangle className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-neutral-900 dark:text-white">Cannot Delete Model</h3>
-                    <p className="text-xs text-rose-500">Active dependencies detected</p>
-                  </div>
+              {/* Wizard Bottom Footer */}
+              <div className="flex items-center justify-between pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                <button
+                  type="button"
+                  onClick={() => setView("list")}
+                  className="px-4 py-2 text-xs font-bold text-neutral-600 hover:text-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!addProviderId}
+                  onClick={() => setAddStep(1)}
+                  className="px-5 py-2.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-bold rounded-xl disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: SELECT MODELS */}
+          {addStep === 1 && (
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-xs space-y-6">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                <div>
+                  <h2 className="text-base font-bold text-neutral-900 dark:text-white">
+                    Select models &middot; {providers.find((p) => p.id === addProviderId)?.name}
+                  </h2>
                 </div>
+                <span className="text-xs font-bold text-primary-600 dark:text-primary-400">
+                  {providers.find((p) => p.id === addProviderId)?.isCustom
+                    ? `${manualModelNames.length} selected`
+                    : `${Object.values(selectedIds).filter(Boolean).length} selected`}
+                </span>
+              </div>
 
-                <div className="space-y-3 text-xs">
-                  <p className="text-neutral-600 dark:text-neutral-300 leading-relaxed bg-neutral-50 dark:bg-neutral-800/40 p-3 rounded-xl border border-neutral-200/60 dark:border-neutral-700">
-                    Model <strong className="text-neutral-900 dark:text-white">{targetModel.name}</strong> ({targetModel.modelId}) is currently assigned to active entities. Please reassign or remove model access from these entities before deleting.
+              {/* Custom Provider Manual Model Entry */}
+              {providers.find((p) => p.id === addProviderId)?.isCustom ? (
+                <div className="space-y-4">
+                  <p className="text-xs text-neutral-500">
+                    No catalog for this provider — type each model's ID exactly as the endpoint expects it.
+                  </p>
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={manualModelInput}
+                      onChange={(e) => setManualModelInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddManualModel())}
+                      placeholder="Model ID (e.g. llama-3.1-8b-instruct-q4)"
+                      className="flex-1 h-10 px-3.5 text-xs bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddManualModel}
+                      className="px-4 py-2 bg-neutral-900 text-white text-xs font-bold rounded-xl"
+                    >
+                      + Add
+                    </button>
+                  </div>
+
+                  {/* Manual Model Chips */}
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {manualModelNames.map((name) => (
+                      <span
+                        key={name}
+                        className="px-3 py-1.5 bg-primary-50 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800 text-xs font-mono font-bold rounded-xl flex items-center gap-2"
+                      >
+                        {name}
+                        <button type="button" onClick={() => handleRemoveManualModel(name)} className="hover:text-rose-600">
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+
+                  {manualModelNames.length === 0 && (
+                    <div className="p-8 text-center border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-xl text-neutral-400 text-xs">
+                      No models added yet. Type an ID above and press Add.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Standard Provider Catalog Selector */
+                <div className="space-y-4">
+                  <p className="text-xs text-neutral-500">
+                    Showing catalog models not yet onboarded. Search narrows the list before you pick.
                   </p>
 
-                  <div className="space-y-2 border border-rose-200/60 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20 p-3 rounded-xl">
-                    <div className="font-semibold text-rose-800 dark:text-rose-300 text-[11px] uppercase tracking-wider">
-                      Active Dependent Entities:
-                    </div>
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={addSearch}
+                      onChange={(e) => setAddSearch(e.target.value)}
+                      placeholder={`Search ${providers.find((p) => p.id === addProviderId)?.name} models...`}
+                      className="flex-1 h-10 px-3.5 text-xs bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const available = models.filter((m) => m.providerId === addProviderId && !m.added);
+                        const sel: Record<string, boolean> = { ...selectedIds };
+                        available.forEach((m) => (sel[m.id] = true));
+                        setSelectedIds(sel);
+                      }}
+                      className="px-3.5 py-2 text-xs font-semibold border border-neutral-200 dark:border-neutral-700 rounded-xl hover:bg-neutral-50"
+                    >
+                      Select all filtered
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIds({})}
+                      className="px-3.5 py-2 text-xs font-semibold border border-neutral-200 dark:border-neutral-700 rounded-xl hover:bg-neutral-50"
+                    >
+                      Clear
+                    </button>
+                  </div>
 
-                    {targetModel.dependentOrgs && targetModel.dependentOrgs.length > 0 && (
-                      <div className="flex items-start gap-2">
-                        <span className="font-medium text-neutral-500 w-24 shrink-0">Organizations:</span>
-                        <div className="flex flex-wrap gap-1">
-                          {targetModel.dependentOrgs.map((org) => (
-                            <span key={org} className="px-2 py-0.5 rounded bg-white dark:bg-neutral-800 border text-[11px] font-semibold">
-                              {org}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {targetModel.dependentTeams && targetModel.dependentTeams.length > 0 && (
-                      <div className="flex items-start gap-2">
-                        <span className="font-medium text-neutral-500 w-24 shrink-0">Teams:</span>
-                        <div className="flex flex-wrap gap-1">
-                          {targetModel.dependentTeams.map((t) => (
-                            <span key={t} className="px-2 py-0.5 rounded bg-white dark:bg-neutral-800 border text-[11px] font-semibold">
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {targetModel.dependentKeys && targetModel.dependentKeys.length > 0 && (
-                      <div className="flex items-start gap-2">
-                        <span className="font-medium text-neutral-500 w-24 shrink-0">Virtual Keys:</span>
-                        <div className="flex flex-wrap gap-1">
-                          {targetModel.dependentKeys.map((vk) => (
-                            <span key={vk} className="px-2 py-0.5 rounded bg-white dark:bg-neutral-800 border font-mono text-[11px] font-semibold">
-                              {vk}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                  {/* Checkbox Model Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[380px] overflow-y-auto p-2 border border-neutral-200 dark:border-neutral-800 rounded-2xl">
+                    {models
+                      .filter((m) => m.providerId === addProviderId && !m.added)
+                      .filter((m) => m.name.toLowerCase().includes(addSearch.toLowerCase()))
+                      .map((m) => {
+                        const checked = Boolean(selectedIds[m.id]);
+                        return (
+                          <div
+                            key={m.id}
+                            onClick={() => setSelectedIds((prev) => ({ ...prev, [m.id]: !prev[m.id] }))}
+                            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center gap-3 ${
+                              checked
+                                ? "bg-primary-50/50 dark:bg-primary-950/40 border-primary-500 font-bold"
+                                : "bg-white dark:bg-neutral-850 border-neutral-200 dark:border-neutral-800 hover:border-neutral-300"
+                            }`}
+                          >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${checked ? "bg-primary-600 border-primary-600 text-white" : "border-neutral-300"}`}>
+                              {checked && <Check className="w-3 h-3" />}
+                            </div>
+                            <span className="text-xs font-mono truncate text-neutral-900 dark:text-white">{m.name}</span>
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
+              )}
 
-                <div className="flex justify-end pt-2 border-t border-neutral-200 dark:border-neutral-800">
-                  <SecondaryButton onClick={() => setShowDeleteModal(false)}>
-                    Go Back
-                  </SecondaryButton>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3 className="font-bold text-base text-rose-600 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5" />
-                  Delete Model Registration
-                </h3>
-                <p className="text-xs text-neutral-500 leading-relaxed">
-                  Are you sure you want to permanently delete model <span className="font-semibold text-neutral-900 dark:text-white">{targetModel.name}</span> ({targetModel.modelId}) from your platform registry?
+              {/* Wizard Footer */}
+              <div className="flex items-center justify-between pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                <button
+                  type="button"
+                  onClick={() => setAddStep(0)}
+                  className="px-4 py-2 text-xs font-bold text-neutral-600 hover:text-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    providers.find((p) => p.id === addProviderId)?.isCustom
+                      ? manualModelNames.length === 0
+                      : Object.values(selectedIds).filter(Boolean).length === 0
+                  }
+                  onClick={() => setAddStep(2)}
+                  className="px-5 py-2.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-bold rounded-xl disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: SET ALIASES */}
+          {addStep === 2 && (
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-xs space-y-6">
+              <div>
+                <h2 className="text-base font-bold text-neutral-900 dark:text-white">Set aliases</h2>
+                <p className="text-xs text-neutral-500 mt-1">
+                  Aliases are the business-facing names apps call instead of raw provider model IDs. Apply a pattern to all selected models, then fine-tune any individually.
                 </p>
-                <div className="flex justify-end gap-3 pt-2">
-                  <SecondaryButton onClick={() => setShowDeleteModal(false)}>Cancel</SecondaryButton>
+              </div>
+
+              {/* Bulk Pattern Section */}
+              <div className="p-4 bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700 rounded-2xl space-y-2">
+                <span className="text-xs font-bold text-neutral-700 dark:text-neutral-300">Bulk pattern</span>
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={aliasPattern}
+                    onChange={(e) => setAliasPattern(e.target.value)}
+                    className="flex-1 h-9 px-3 text-xs bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl font-mono"
+                  />
                   <button
                     type="button"
-                    onClick={handleConfirmDelete}
-                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg shadow-sm"
+                    onClick={() => {
+                      const ov: Record<string, string> = { ...aliasOverrides };
+                      const chosenP = providers.find((p) => p.id === addProviderId);
+                      if (chosenP?.isCustom) {
+                        manualModelNames.forEach((n) => {
+                          ov[`custom-${n}`] = applyPattern(n, chosenP.id);
+                        });
+                      } else {
+                        models
+                          .filter((m) => m.providerId === addProviderId && selectedIds[m.id])
+                          .forEach((m) => {
+                            ov[m.id] = applyPattern(m.name, m.providerId);
+                          });
+                      }
+                      setAliasOverrides(ov);
+                      toast.success("Applied bulk pattern to all selected models.");
+                    }}
+                    className="px-4 py-2 bg-neutral-900 text-white text-xs font-bold rounded-xl"
                   >
-                    Delete Model
+                    Apply to all
                   </button>
                 </div>
-              </>
-            )}
-          </div>
+                <span className="text-[11px] text-neutral-400 block">Use {"{provider}"} and {"{model}"} as placeholders.</span>
+              </div>
+
+              {/* Editable Aliases List */}
+              <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
+                {providers.find((p) => p.id === addProviderId)?.isCustom
+                  ? manualModelNames.map((name) => (
+                      <div key={name} className="flex items-center gap-3 p-3 border border-neutral-200 dark:border-neutral-800 rounded-xl">
+                        <span className="flex-1 text-xs font-mono text-neutral-600 dark:text-neutral-400 truncate">{name}</span>
+                        <span className="text-neutral-400">&rarr;</span>
+                        <input
+                          type="text"
+                          value={aliasOverrides[`custom-${name}`] ?? applyPattern(name, addProviderId || "")}
+                          onChange={(e) => setAliasOverrides((prev) => ({ ...prev, [`custom-${name}`]: e.target.value }))}
+                          className="flex-1 h-9 px-3 text-xs bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl font-mono"
+                        />
+                      </div>
+                    ))
+                  : models
+                      .filter((m) => m.providerId === addProviderId && selectedIds[m.id])
+                      .map((m) => (
+                        <div key={m.id} className="flex items-center gap-3 p-3 border border-neutral-200 dark:border-neutral-800 rounded-xl">
+                          <span className="flex-1 text-xs font-mono text-neutral-600 dark:text-neutral-400 truncate">{m.name}</span>
+                          <span className="text-neutral-400">&rarr;</span>
+                          <input
+                            type="text"
+                            value={aliasOverrides[m.id] ?? applyPattern(m.name, m.providerId)}
+                            onChange={(e) => setAliasOverrides((prev) => ({ ...prev, [m.id]: e.target.value }))}
+                            className="flex-1 h-9 px-3 text-xs bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl font-mono"
+                          />
+                        </div>
+                      ))}
+              </div>
+
+              {/* Wizard Footer */}
+              <div className="flex items-center justify-between pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                <button
+                  type="button"
+                  onClick={() => setAddStep(1)}
+                  className="px-4 py-2 text-xs font-bold text-neutral-600 hover:text-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveModel}
+                  className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-xl shadow-xs"
+                >
+                  Save Model
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
+      {/* 3. MODEL DETAIL / VIEW MODEL VIEW */}
+      {view === "detail" && detailModel && (
+        <div className="space-y-6">
+          {/* Back Navigation Link */}
+          <button
+            type="button"
+            onClick={() => setView("list")}
+            className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Master Model Management</span>
+          </button>
+
+          {/* Model Detail Header Card */}
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0"
+                  style={{ backgroundColor: detailModel.color }}
+                >
+                  {detailModel.providerName[0]}
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-xl font-bold font-mono text-neutral-900 dark:text-white truncate">
+                    {detailModel.name}
+                  </h1>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    {detailModel.providerName} &middot; Alias: {detailModel.alias}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="px-3 py-1 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold text-xs">
+                  {detailModel.name.includes("embed") ? "EMBEDDING" : "CHAT"}
+                </span>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 ${
+                    detailModel.status === "Active"
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                      : "bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                  {detailModel.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Metrics Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-neutral-100 dark:border-neutral-800">
+              <div>
+                <span className="text-[11px] font-semibold text-neutral-400 block mb-1">Context Window</span>
+                <span className="text-xl font-bold text-neutral-900 dark:text-white font-mono">
+                  {formatContext(detailModel.contextWindow)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold text-neutral-400 block mb-1">Input Price</span>
+                <span className="text-xl font-bold text-neutral-900 dark:text-white font-mono">
+                  ${detailModel.inputPrice.toFixed(2)}/M
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold text-neutral-400 block mb-1">Output Price</span>
+                <span className="text-xl font-bold text-neutral-900 dark:text-white font-mono">
+                  ${detailModel.outputPrice.toFixed(2)}/M
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold text-neutral-400 block mb-1">Max Output</span>
+                <span className="text-xl font-bold text-neutral-900 dark:text-white font-mono">
+                  {detailModel.maxOutput.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3 Cards Grid Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Card 1: Token Pricing */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-xs space-y-4">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Token Pricing</h3>
+                <p className="text-[11px] text-neutral-500 mt-0.5">Per 1M tokens where applicable</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="p-3 bg-neutral-50 dark:bg-neutral-800/60 rounded-xl space-y-1">
+                  <span className="text-[10px] font-bold text-neutral-400 block">INPUT</span>
+                  <span className="text-sm font-bold font-mono text-neutral-900 dark:text-white">
+                    ${detailModel.inputPrice.toFixed(2)}/M
+                  </span>
+                </div>
+                <div className="p-3 bg-neutral-50 dark:bg-neutral-800/60 rounded-xl space-y-1">
+                  <span className="text-[10px] font-bold text-neutral-400 block">OUTPUT</span>
+                  <span className="text-sm font-bold font-mono text-neutral-900 dark:text-white">
+                    ${detailModel.outputPrice.toFixed(2)}/M
+                  </span>
+                </div>
+                <div className="p-3 bg-neutral-50 dark:bg-neutral-800/60 rounded-xl space-y-1">
+                  <span className="text-[10px] font-bold text-neutral-400 block">CACHE READ</span>
+                  <span className="text-sm font-bold font-mono text-neutral-900 dark:text-white">
+                    ${(detailModel.inputPrice * 0.1).toFixed(2)}/M
+                  </span>
+                </div>
+                <div className="p-3 bg-neutral-50 dark:bg-neutral-800/60 rounded-xl space-y-1">
+                  <span className="text-[10px] font-bold text-neutral-400 block">CACHE WRITE</span>
+                  <span className="text-sm font-bold font-mono text-neutral-900 dark:text-white">
+                    ${(detailModel.inputPrice * 1.25).toFixed(2)}/M
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Model Info */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-xs space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Model Info</h3>
+
+              <div className="space-y-3 text-xs divide-y divide-neutral-100 dark:divide-neutral-800">
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-neutral-500">Provider</span>
+                  <span className="font-bold text-neutral-900 dark:text-white">{detailModel.providerName}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-neutral-500">Mode</span>
+                  <span className="font-bold text-neutral-900 dark:text-white">
+                    {detailModel.name.includes("embed") ? "EMBEDDING" : "CHAT"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-neutral-500">Max Input</span>
+                  <span className="font-mono font-bold text-neutral-900 dark:text-white">
+                    {detailModel.maxInput.toLocaleString()} tokens
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-neutral-500">Max Output</span>
+                  <span className="font-mono font-bold text-neutral-900 dark:text-white">
+                    {detailModel.maxOutput.toLocaleString()} tokens
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-neutral-500">Status</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">&bull; {detailModel.status}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Features */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-xs space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Features</h3>
+
+              <div className="space-y-2.5 text-xs">
+                {[
+                  { key: "function", label: "Function Calling" },
+                  { key: "vision", label: "Vision" },
+                  { key: "json", label: "JSON Mode" },
+                  { key: "streaming", label: "Streaming" },
+                  { key: "toolChoice", label: "Tool Choice" },
+                  { key: "parallel", label: "Parallel Calls" },
+                  { key: "audio", label: "Audio Input" },
+                  { key: "caching", label: "Prompt Caching" },
+                ].map((feat) => {
+                  const supported =
+                    detailModel.capabilities.includes(feat.key) ||
+                    (feat.key === "toolChoice" && detailModel.capabilities.includes("function")) ||
+                    feat.key === "streaming";
+                  return (
+                    <div key={feat.key} className="flex items-center gap-3">
+                      <span className={`font-bold w-4 text-center ${supported ? "text-emerald-500" : "text-neutral-300 dark:text-neutral-700"}`}>
+                        {supported ? "✓" : "—"}
+                      </span>
+                      <span className={supported ? "text-neutral-800 dark:text-neutral-200 font-medium" : "text-neutral-400"}>
+                        {feat.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
