@@ -23,7 +23,9 @@ import CredentialsManagement from "./components/CredentialsManagement";
 import ModelManagement from "./components/ModelManagement";
 import AIGatewayModelManagement from "./components/AIGatewayModelManagement";
 import Playground from "./components/Playground";
-import GuardrailsManagement from "./components/GuardrailsManagement";
+import { SecurityMonitoringManagement } from "./components/SecurityMonitoringManagement";
+import { PoliciesManagement } from "./components/PoliciesManagement";
+import { GuardrailsManagement } from "./components/GuardrailsManagement";
 import OrganizationManagement from "./components/OrganizationManagement";
 import { ErrorBoundary } from "./components/hb/common/ErrorBoundary";
 import TeamsManagement from "./components/TeamsManagement";
@@ -209,6 +211,14 @@ export default function App() {
             ) : currentPage === "master-model-management" || currentPage === "master-models" || currentPage === "model-management" || currentPage === "models" ? (
               <ErrorBoundary moduleName="Master Model Management">
                 <ModelManagement />
+              </ErrorBoundary>
+            ) : currentPage === "security-monitoring" ? (
+              <ErrorBoundary moduleName="Security Monitoring">
+                <SecurityMonitoringManagement />
+              </ErrorBoundary>
+            ) : currentPage === "policies" ? (
+              <ErrorBoundary moduleName="Policies">
+                <PoliciesManagement />
               </ErrorBoundary>
             ) : currentPage === "guardrails" || currentPage === "guardrails-management" ? (
               <ErrorBoundary moduleName="Guardrails">

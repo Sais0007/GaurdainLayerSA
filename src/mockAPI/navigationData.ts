@@ -61,6 +61,24 @@ export const getNavigationData = (
       icon: Cpu,
       subItems: [
         {
+          id: "security-monitoring",
+          label: "Security Monitoring",
+          onClick: () => onNavigate("security-monitoring"),
+          active: currentPage === "security-monitoring",
+        },
+        {
+          id: "policies",
+          label: "Policies",
+          onClick: () => onNavigate("policies"),
+          active: currentPage === "policies",
+        },
+        {
+          id: "guardrails",
+          label: "Guardrails",
+          onClick: () => onNavigate("guardrails"),
+          active: currentPage === "guardrails" || currentPage === "guardrails-management",
+        },
+        {
           id: "virtual-keys",
           label: "Virtual Keys",
           onClick: () => onNavigate("virtual-keys"),
