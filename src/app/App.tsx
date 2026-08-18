@@ -14,11 +14,16 @@ import EmailTemplates from "./components/EmailTemplates";
 import SystemNotifications from "./components/SystemNotifications";
 import RoleManagement from "./components/RoleManagement";
 import { RequestLogsManagement } from "./components/RequestLogsManagement";
+import { AuditLogsManagement } from "./components/AuditLogsManagement";
 import { SiteMap } from "./components/SiteMap";
 import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
 import VirtualKeyManagement from "./components/VirtualKeyManagement";
+import CredentialsManagement from "./components/CredentialsManagement";
 import ModelManagement from "./components/ModelManagement";
+import AIGatewayModelManagement from "./components/AIGatewayModelManagement";
+import Playground from "./components/Playground";
+import GuardrailsManagement from "./components/GuardrailsManagement";
 import OrganizationManagement from "./components/OrganizationManagement";
 import { ErrorBoundary } from "./components/hb/common/ErrorBoundary";
 import TeamsManagement from "./components/TeamsManagement";
@@ -193,9 +198,25 @@ export default function App() {
               <ErrorBoundary moduleName="Virtual Keys">
                 <VirtualKeyManagement />
               </ErrorBoundary>
-            ) : currentPage === "model-management" || currentPage === "models" ? (
+            ) : currentPage === "credentials-management" || currentPage === "credentials" ? (
+              <ErrorBoundary moduleName="Credentials Management">
+                <CredentialsManagement />
+              </ErrorBoundary>
+            ) : currentPage === "ai-gateway-model-management" || currentPage === "ai-model-management" || currentPage === "gateway-models" ? (
               <ErrorBoundary moduleName="Model Management">
+                <AIGatewayModelManagement />
+              </ErrorBoundary>
+            ) : currentPage === "master-model-management" || currentPage === "master-models" || currentPage === "model-management" || currentPage === "models" ? (
+              <ErrorBoundary moduleName="Master Model Management">
                 <ModelManagement />
+              </ErrorBoundary>
+            ) : currentPage === "guardrails" || currentPage === "guardrails-management" ? (
+              <ErrorBoundary moduleName="Guardrails">
+                <GuardrailsManagement />
+              </ErrorBoundary>
+            ) : currentPage === "playground" ? (
+              <ErrorBoundary moduleName="Playground">
+                <Playground />
               </ErrorBoundary>
             ) : currentPage === "event-management" ? (
               <EventManagement />
@@ -215,9 +236,13 @@ export default function App() {
               <EmailTemplates />
             ) : currentPage === "system-notifications" ? (
               <SystemNotifications />
-            ) : currentPage === "logs" || currentPage === "request-log" || currentPage === "request-logs" || currentPage === "audit-logs" || currentPage === "login-logs" || currentPage === "api-logs" || currentPage === "email-logs" ? (
+            ) : currentPage === "audit-log" || currentPage === "audit-logs" ? (
+              <ErrorBoundary moduleName="Audit Logs">
+                <AuditLogsManagement initialTab="audit" />
+              </ErrorBoundary>
+            ) : currentPage === "logs" || currentPage === "request-log" || currentPage === "request-logs" || currentPage === "login-logs" || currentPage === "api-logs" || currentPage === "email-logs" ? (
               <ErrorBoundary moduleName="Request Logs">
-                <RequestLogsManagement />
+                <RequestLogsManagement initialTab="request" />
               </ErrorBoundary>
             ) : currentPage === "site-map" ? (
               <SiteMap onNavigate={handleNavigate} currentPage={currentPage} />

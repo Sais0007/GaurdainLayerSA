@@ -294,6 +294,88 @@ const mockAuditLogs: AuditLogEntry[] = [
   { id: "log-5", date: "Jul 20, 2026 11:20:00", user: "hbadmin@yopmail.com", action: "Key Provisioned", ip: "192.168.1.104", status: "Success", description: "Initial Virtual Key generated and assigned to AI Research" },
 ];
 
+export const STEP2_PROVIDERS = [
+  { id: "openai", name: "OpenAI", count: 12, color: "#059669" },
+  { id: "anthropic", name: "Anthropic", count: 35, color: "#7c3aed" },
+  { id: "gemini", name: "Google Gemini", count: 55, color: "#2563eb" },
+  { id: "azure", name: "Azure OpenAI", count: 50, color: "#0284c7" },
+  { id: "bedrock", name: "AWS Bedrock", count: 80, color: "#d97706" },
+  { id: "mistral", name: "Mistral AI", count: 40, color: "#db2777" },
+  { id: "cohere", name: "Cohere", count: 25, color: "#0891b2" },
+  { id: "groq", name: "Groq", count: 18, color: "#9333ea" },
+  { id: "perplexity", name: "Perplexity", count: 12, color: "#0284c7" },
+  { id: "deepseek", name: "DeepSeek", count: 20, color: "#06b6d4" },
+  { id: "xai", name: "xAI", count: 10, color: "#475569" },
+  { id: "metaLlama", name: "Meta Llama", count: 30, color: "#3b82f6" },
+  { id: "watsonx", name: "IBM watsonx", count: 22, color: "#1d4ed8" },
+  { id: "ai21", name: "AI21 Labs", count: 15, color: "#e11d48" },
+  { id: "voyage", name: "Voyage AI", count: 13, color: "#10b981" },
+  { id: "huggingface", name: "HuggingFace", count: 380, color: "#f59e0b" },
+  { id: "openrouter", name: "OpenRouter", count: 220, color: "#6366f1" },
+  { id: "together", name: "Together AI", count: 150, color: "#8b5cf6" },
+  { id: "fireworks", name: "Fireworks AI", count: 120, color: "#ec4899" },
+  { id: "replicate", name: "Replicate", count: 90, color: "#14b8a6" },
+];
+
+export const STEP2_CATALOG: Record<string, string[]> = {
+  openai: [
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "o3",
+    "o3-mini",
+    "o4-mini",
+    "chatgpt-image-latest",
+    "sora-2-pro",
+    "tts-1",
+    "whisper-1",
+    "text-embedding-3-large",
+  ],
+  anthropic: [
+    "claude-4-opus-20250514",
+    "claude-haiku-4-52",
+    "claude-opus-4-51",
+    "claude-4-sonnet-20250514",
+    "claude-3-5-sonnet-20241022",
+  ],
+  gemini: [
+    "gemini/gemini-2.5-flash",
+    "gemini/gemini-2.5-pro",
+    "gemini-gemini-2-5-flash-atindra",
+    "gemini-gemini-2-5-flash",
+    "gemini-embedding-001",
+  ],
+  azure: [
+    "Good che - 1",
+    "gpt-4o",
+    "gpt-3.5-turbo11123",
+    "azure-gpt-4o-mini",
+    "azure/o3-mini",
+  ],
+  bedrock: [
+    "amazon.titan-text-express-v1",
+    "anthropic.claude-3-sonnet-20240229-v1:0",
+    "meta.llama3-70b-instruct-v1:0",
+    "mistral.mixtral-8x7b-instruct-v0:1",
+  ],
+  mistral: [
+    "mistral-large-latest",
+    "mistral-small-latest",
+    "codestral-latest",
+    "mistral-embed",
+  ],
+  cohere: ["command-r-plus", "command-r", "embed-english-v3.0"],
+  groq: ["llama-3.3-70b-versatile", "mixtral-8x7b-32768"],
+  perplexity: ["sonar-pro", "sonar", "sonar-reasoning"],
+  deepseek: ["deepseek-chat", "deepseek-reasoner"],
+  xai: ["grok-3", "grok-3-mini", "grok-2-vision"],
+  metaLlama: ["llama-3.3-70b", "llama-3.1-405b"],
+  watsonx: ["granite-13b-chat-v2", "llama-3-70b-instruct"],
+  ai21: ["jamba-1.5-large", "jamba-1.5-mini"],
+  voyage: ["voyage-3", "voyage-code-3"],
+};
+
 export interface VirtualKeyManagementProps {
   hideHeader?: boolean;
   orgName?: string;
@@ -302,8 +384,43 @@ export interface VirtualKeyManagementProps {
 
 export function VirtualKeyManagement({ hideHeader = false, orgName, orgId }: VirtualKeyManagementProps) {
   const [keys, setKeys] = useState<VirtualKey[]>(mockVirtualKeys);
-  const [viewState, setViewState] = useState<"list" | "detail">("list");
+  const [viewState, setViewState] = useState<"list" | "detail" | "add">("list");
   const [selectedKey, setSelectedKey] = useState<VirtualKey | null>(null);
+
+  // Add Virtual Key Separate Screen State
+  const [addStepIndex, setAddStepIndex] = useState<number>(0);
+  const [addKeyName, setAddKeyName] = useState<string>("");
+  const [addDescription, setAddDescription] = useState<string>("");
+  const [addOwnershipType, setAddOwnershipType] = useState<"User" | "Team">("User");
+  const [addAssignedUserId, setAddAssignedUserId] = useState<string>("atindra.ojha+user@hiddenbrains.in");
+  const [addAssignedTeamId, setAddAssignedTeamId] = useState<string>("New Testing Team");
+  const [addExpiration, setAddExpiration] = useState<string>("never");
+  const [addAccessMode, setAddAccessMode] = useState<"all" | "selected">("selected");
+  
+  // Enhanced Model Selection States
+  const [addSelectedByProvider, setAddSelectedByProvider] = useState<Record<string, Record<string, boolean>>>({
+    openai: { "gpt-4o": true, "gpt-4o-mini": true },
+    anthropic: { "claude-4-opus-20250514": true },
+  });
+  const [addExpandedSummaryProviderId, setAddExpandedSummaryProviderId] = useState<string | null>(null);
+  const [addInfoOpenKey, setAddInfoOpenKey] = useState<string | null>(null);
+  const [addProviderSearch, setAddProviderSearch] = useState<string>("");
+  const [addActiveProviderId, setAddActiveProviderId] = useState<string>("openai");
+  const [addModelSearch, setAddModelSearch] = useState<string>("");
+  const [addGlobalSearch, setAddGlobalSearch] = useState<string>("");
+
+  // Budget Configuration States
+  const [addUnlimitedBudget, setAddUnlimitedBudget] = useState<boolean>(false);
+  const [addMaxBudget, setAddMaxBudget] = useState<string>("500");
+  const [addSoftBudget, setAddSoftBudget] = useState<string>("400");
+  const [addResetDuration, setAddResetDuration] = useState<string>("Monthly");
+  const [addEmailChips, setAddEmailChips] = useState<string[]>(["john@company.com"]);
+  const [addEmailDraft, setAddEmailDraft] = useState<string>("");
+
+  // Rate Limits States
+  const [addUnlimitedRateLimits, setAddUnlimitedRateLimits] = useState<boolean>(false);
+  const [addTpm, setAddTpm] = useState<string>("100000");
+  const [addRpm, setAddRpm] = useState<string>("1000");
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
@@ -604,26 +721,106 @@ export function VirtualKeyManagement({ hideHeader = false, orgName, orgId }: Vir
   const handleOpenCreateModal = () => {
     setIsEditMode(false);
     setSelectedKey(null);
-    setFormAlias("");
-    setFormDescription("");
-    setFormOwnershipType("User");
-    setFormOwner(usersList[0]?.email || "hbadmin@yopmail.com");
-    setFormTeam("");
-    setFormOrg(orgName || "HB Enterprise");
-    setFormKeyType("AI APIs");
-    setFormModels(["gpt-4o", "claude-3-5-sonnet"]);
-    setAllModelsSelected(false);
-    setFormMaxBudget("500");
-    setFormSoftBudget("400");
-    setFormBudgetCycle("Lifetime");
-    setFormNotificationEmails(["john@company.com"]);
-    setFormEmailInputText("");
-    setFormTpmLimit("100000");
-    setFormRpmLimit("1000");
-    setFormExpiryDuration("Never");
-    setFormTouched(false);
-    setIsGenerating(false);
-    setShowCreateModal(true);
+    setAddStepIndex(0);
+    setAddKeyName("");
+    setAddDescription("");
+    setAddOwnershipType("User");
+    setAddAssignedUserId(usersList[0]?.email || "atindra.ojha+user@hiddenbrains.in");
+    setAddAssignedTeamId(teamsList[0]?.name || "New Testing Team");
+    setAddExpiration("never");
+    setAddAccessMode("selected");
+    setAddSelectedByProvider({
+      openai: { "gpt-4o": true, "gpt-4o-mini": true },
+      anthropic: { "claude-4-opus-20250514": true },
+    });
+    setAddExpandedSummaryProviderId(null);
+    setAddInfoOpenKey(null);
+    setAddProviderSearch("");
+    setAddActiveProviderId("openai");
+    setAddModelSearch("");
+    setAddGlobalSearch("");
+    setAddUnlimitedBudget(false);
+    setAddMaxBudget("500");
+    setAddSoftBudget("400");
+    setAddResetDuration("Monthly");
+    setAddEmailChips(["john@company.com"]);
+    setAddEmailDraft("");
+    setAddUnlimitedRateLimits(false);
+    setAddTpm("100000");
+    setAddRpm("1000");
+    setViewState("add");
+  };
+
+  const handleSaveNewVirtualKey = () => {
+    if (!addKeyName.trim()) {
+      toast.error("Please enter a Virtual Key Name");
+      return;
+    }
+
+    let selectedModelsList: string[] = [];
+    if (addAccessMode === "all") {
+      selectedModelsList = ["All Models"];
+    } else {
+      Object.keys(addSelectedByProvider).forEach((pId) => {
+        Object.keys(addSelectedByProvider[pId] || {}).forEach((mName) => {
+          if (addSelectedByProvider[pId][mName]) {
+            selectedModelsList.push(mName);
+          }
+        });
+      });
+    }
+
+    const ownerName =
+      addOwnershipType === "User"
+        ? addAssignedUserId
+        : addAssignedTeamId;
+
+    const parsedMaxBudget = addUnlimitedBudget ? 0 : Number(addMaxBudget) || 500;
+    const parsedTpm = addUnlimitedRateLimits ? 0 : Number(addTpm) || 100000;
+    const parsedRpm = addUnlimitedRateLimits ? 0 : Number(addRpm) || 1000;
+
+    const newKeyItem: VirtualKey = {
+      id: `vk-${Date.now()}`,
+      keyId: `vk_live_${Math.random().toString(36).slice(2, 10)}`,
+      alias: addKeyName.trim(),
+      ownershipType: addOwnershipType,
+      owner: ownerName,
+      ownerId: ownerName,
+      ownerType: "Another User",
+      organization: orgName || "HB Enterprise",
+      orgId: "org-1",
+      team: addOwnershipType === "Team" ? addAssignedTeamId : "",
+      keyType: "AI APIs",
+      models: selectedModelsList.length > 0 ? selectedModelsList : ["All Models"],
+      maxBudget: parsedMaxBudget,
+      currentSpend: 0,
+      status: "Active",
+      tpmLimit: parsedTpm,
+      rpmLimit: parsedRpm,
+      expiryDuration: addExpiration === "never" ? "Never" : addExpiration,
+      expiryDate: addExpiration === "never" ? "Never" : "2027-01-01",
+      gracePeriod: "7 Days",
+      policies: ["Rate Limiting", "Cost Cap"],
+      guardrails: ["PII Redaction"],
+      loggingIntegration: "Enabled",
+      autoRotation: false,
+      lastUsed: "Never",
+      createdDate: new Date().toISOString().split("T")[0],
+      createdBy: "Super Admin",
+      description: addDescription,
+      secretKeyMasked: `sk-vk-••••••••${Math.random().toString(36).slice(2, 6)}`,
+    };
+
+    setKeys((prev) => [newKeyItem, ...prev]);
+
+    const rawKey = `sk-vk-live-${Math.random().toString(36).slice(2, 18)}${Date.now().toString(36)}`;
+    setGeneratedPlaintextKey(rawKey);
+    setHasCopiedSecretKey(false);
+    setShowSuccessKeyModal(true);
+    setHighlightedKeyId(newKeyItem.id);
+
+    toast.success(`Virtual Key "${addKeyName.trim()}" created successfully!`);
+    setViewState("list");
   };
 
   const handleOpenEditModal = (keyItem: VirtualKey) => {
@@ -1051,7 +1248,7 @@ export function VirtualKeyManagement({ hideHeader = false, orgName, orgId }: Vir
       {/* ========================================================================= */}
       {/* SCREEN 1: VIRTUAL KEY LISTING (TABLE VIEW ONLY)                           */}
       {/* ========================================================================= */}
-      {viewState === "list" || !selectedKey ? (
+      {viewState === "list" ? (
         <>
           {!hideHeader ? (
             <PageHeader
@@ -1561,12 +1758,8 @@ export function VirtualKeyManagement({ hideHeader = false, orgName, orgId }: Vir
             </div>
           </div>
         </>
-      ) : (
-        /* ========================================================================= */
-        /* SCREEN 3: FULL VIRTUAL KEY DETAIL PAGE (WITH ALL TABS ENHANCED)           */
-        /* ========================================================================= */
-        selectedKey && (
-          <div className="space-y-6 animate-fadeIn">
+      ) : viewState === "detail" && selectedKey ? (
+        <div className="space-y-6 animate-fadeIn">
             {/* Top Navigation & Labeled Enterprise Header Action Buttons */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <button
@@ -2078,8 +2271,863 @@ export function VirtualKeyManagement({ hideHeader = false, orgName, orgId }: Vir
               </div>
             )}
           </div>
-        )
-      )}
+        ) : viewState === "add" ? (
+        <div className="flex justify-center p-4 sm:p-6 animate-fadeIn">
+          <div className="max-w-[1100px] w-full space-y-6">
+            {/* Back Button */}
+            <button
+              type="button"
+              onClick={() => setViewState("list")}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Virtual Keys</span>
+            </button>
+
+            {/* Header */}
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">
+                Add Virtual Key
+              </h1>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                Create a routing key and scope its model access.
+              </p>
+            </div>
+
+            {/* Stepper Header */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 sm:p-5 shadow-xs flex items-center">
+              {[
+                { key: "info", label: "Basic Information", num: 1 },
+                { key: "models", label: "Model Access", num: 2 },
+              ].map((st, idx) => {
+                const isCurrent = addStepIndex === idx;
+                const isDone = addStepIndex > idx;
+                return (
+                  <React.Fragment key={st.key}>
+                    <div
+                      onClick={() => {
+                        if (idx === 0 || (idx === 1 && addKeyName.trim())) {
+                          setAddStepIndex(idx);
+                        }
+                      }}
+                      className="flex items-center gap-3 cursor-pointer"
+                    >
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+                          isDone
+                            ? "bg-teal-600 text-white"
+                            : isCurrent
+                            ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900"
+                            : "bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border border-neutral-200 dark:border-neutral-700"
+                        }`}
+                      >
+                        {isDone ? <Check className="w-4 h-4" /> : st.num}
+                      </div>
+                      <span
+                        className={`text-xs font-semibold ${
+                          isCurrent
+                            ? "text-neutral-900 dark:text-white font-bold"
+                            : isDone
+                            ? "text-teal-600 dark:text-teal-400"
+                            : "text-neutral-400"
+                        }`}
+                      >
+                        {st.label}
+                      </span>
+                    </div>
+                    {idx === 0 && (
+                      <div
+                        className={`flex-1 h-0.5 mx-4 ${
+                          addStepIndex > 0 ? "bg-teal-600" : "bg-neutral-200 dark:bg-neutral-800"
+                        }`}
+                      />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+
+            {/* STEP 1: BASIC INFORMATION */}
+            {addStepIndex === 0 && (
+              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-xs space-y-6">
+                <div className="flex items-center gap-2 text-base font-bold text-neutral-900 dark:text-white pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                  <Building2 className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
+                  <span>Basic Information</span>
+                </div>
+
+                {/* Virtual Key Name */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                    Virtual Key Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter Virtual Key Name (e.g. prod-ai-completions)"
+                    value={addKeyName}
+                    onChange={(e) => setAddKeyName(e.target.value.slice(0, 100))}
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400"
+                  />
+                  <div className="flex justify-between items-center text-[11px] text-neutral-400 mt-1">
+                    <span>Must be unique across your organization.</span>
+                    <span>{addKeyName.length}/100</span>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                    Description <span className="text-neutral-400 font-normal">(Optional)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe the purpose, application scope, or target service for this key..."
+                    value={addDescription}
+                    onChange={(e) => setAddDescription(e.target.value.slice(0, 300))}
+                    className="w-full p-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 resize-y"
+                  />
+                  <div className="text-right text-[11px] text-neutral-400 mt-1">
+                    {addDescription.length}/300
+                  </div>
+                </div>
+
+                {/* Key Ownership */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                      Key Ownership <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[11.5px] text-neutral-400">
+                      Assign key to an individual User or Team
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setAddOwnershipType("User")}
+                      className={`p-4 rounded-xl border text-left flex items-start gap-3 transition-all cursor-pointer ${
+                        addOwnershipType === "User"
+                          ? "border-neutral-900 dark:border-white bg-neutral-50 dark:bg-neutral-800 ring-1 ring-neutral-900 dark:ring-white"
+                          : "border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:bg-neutral-50"
+                      }`}
+                    >
+                      <div
+                        className={`w-4 h-4 rounded-full border flex items-center justify-center mt-0.5 shrink-0 ${
+                          addOwnershipType === "User"
+                            ? "border-neutral-900 dark:border-white bg-neutral-900 dark:bg-white"
+                            : "border-neutral-300"
+                        }`}
+                      >
+                        {addOwnershipType === "User" && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-white dark:bg-neutral-900" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-neutral-900 dark:text-white flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5" /> User
+                        </div>
+                        <div className="text-[11.5px] text-neutral-400 mt-0.5">
+                          Individual user ownership
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setAddOwnershipType("Team")}
+                      className={`p-4 rounded-xl border text-left flex items-start gap-3 transition-all cursor-pointer ${
+                        addOwnershipType === "Team"
+                          ? "border-neutral-900 dark:border-white bg-neutral-50 dark:bg-neutral-800 ring-1 ring-neutral-900 dark:ring-white"
+                          : "border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:bg-neutral-50"
+                      }`}
+                    >
+                      <div
+                        className={`w-4 h-4 rounded-full border flex items-center justify-center mt-0.5 shrink-0 ${
+                          addOwnershipType === "Team"
+                            ? "border-neutral-900 dark:border-white bg-neutral-900 dark:bg-white"
+                            : "border-neutral-300"
+                        }`}
+                      >
+                        {addOwnershipType === "Team" && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-white dark:bg-neutral-900" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-neutral-900 dark:text-white flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5" /> Team
+                        </div>
+                        <div className="text-[11.5px] text-neutral-400 mt-0.5">
+                          Shared team ownership
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Conditional Dropdown for User vs Team */}
+                {addOwnershipType === "User" ? (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                      Assigned User <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={addAssignedUserId}
+                      onChange={(e) => setAddAssignedUserId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs font-medium text-neutral-900 dark:text-white focus:outline-none cursor-pointer"
+                    >
+                      {usersList.map((u) => (
+                        <option key={u.email} value={u.email}>
+                          {u.email} ({u.name})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                      Assigned Team <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={addAssignedTeamId}
+                      onChange={(e) => setAddAssignedTeamId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs font-medium text-neutral-900 dark:text-white focus:outline-none cursor-pointer"
+                    >
+                      {teamsList.map((t) => (
+                        <option key={t.name} value={t.name}>
+                          {t.name} ({t.org})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Expiration Duration */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                    Expiration Duration
+                  </label>
+                  <select
+                    value={addExpiration}
+                    onChange={(e) => setAddExpiration(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs font-medium text-neutral-900 dark:text-white focus:outline-none cursor-pointer"
+                  >
+                    <option value="never">Never (No expiration)</option>
+                    <option value="30d">30 Days</option>
+                    <option value="90d">90 Days</option>
+                    <option value="1y">1 Year</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: MODEL ACCESS, BUDGET CONFIG & RATE LIMITS */}
+            {addStepIndex === 1 && (
+              <div className="space-y-6">
+                {/* 1. Model Access Card */}
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-xs space-y-4">
+                  <div>
+                    <h2 className="text-base font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-teal-600" />
+                      <span>Model Access</span>
+                    </h2>
+                    <p className="text-xs text-neutral-400 mt-0.5">
+                      {addAccessMode === "all"
+                        ? `All available models across all providers will be routable.`
+                        : `${
+                            Object.values(addSelectedByProvider).reduce(
+                              (acc, provMap) =>
+                                acc + Object.values(provMap).filter(Boolean).length,
+                              0
+                            )
+                          } model(s) selected across ${
+                            Object.keys(addSelectedByProvider).filter((pId) =>
+                              Object.values(addSelectedByProvider[pId] || {}).some(Boolean)
+                            ).length
+                          } of ${STEP2_PROVIDERS.length} providers`}
+                    </p>
+                  </div>
+
+                  {/* Radios */}
+                  <div className="flex items-center gap-6 pt-1">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-neutral-800 dark:text-neutral-200 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="addAccessMode"
+                        checked={addAccessMode === "all"}
+                        onChange={() => setAddAccessMode("all")}
+                        className="w-4 h-4 accent-neutral-900 dark:accent-white"
+                      />
+                      <span>All Available Models</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-xs font-semibold text-neutral-800 dark:text-neutral-200 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="addAccessMode"
+                        checked={addAccessMode === "selected"}
+                        onChange={() => setAddAccessMode("selected")}
+                        className="w-4 h-4 accent-neutral-900 dark:accent-white"
+                      />
+                      <span>Selected Models</span>
+                    </label>
+                  </div>
+
+                  {addAccessMode === "all" ? (
+                    <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700 text-xs text-neutral-700 dark:text-neutral-300 leading-relaxed">
+                      This key can route to every model already assigned to the selected{" "}
+                      <strong>{addOwnershipType.toLowerCase()}</strong> across all provider catalogs &mdash; it will also pick up any new models granted to them later automatically.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Summary Chips Container */}
+                      {Object.keys(addSelectedByProvider).some((pId) =>
+                        Object.values(addSelectedByProvider[pId] || {}).some(Boolean)
+                      ) && (
+                        <div className="p-3 bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-xl space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-bold text-neutral-700 dark:text-neutral-300 mr-1">
+                              Selected Models (
+                              {Object.values(addSelectedByProvider).reduce(
+                                (acc, provMap) =>
+                                  acc + Object.values(provMap).filter(Boolean).length,
+                                0
+                              )}
+                              ):
+                            </span>
+                            {STEP2_PROVIDERS.filter((prov) =>
+                              Object.values(addSelectedByProvider[prov.id] || {}).some(Boolean)
+                            ).map((prov) => {
+                              const selCount = Object.values(
+                                addSelectedByProvider[prov.id] || {}
+                              ).filter(Boolean).length;
+                              const isExpanded = addExpandedSummaryProviderId === prov.id;
+                              return (
+                                <div
+                                  key={prov.id}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-semibold text-neutral-800 dark:text-neutral-200 shadow-2xs"
+                                >
+                                  <span
+                                    className="w-2 h-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: prov.color }}
+                                  />
+                                  <span>
+                                    {prov.name} ({selCount})
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAddExpandedSummaryProviderId(
+                                        isExpanded ? null : prov.id
+                                      )
+                                    }
+                                    className="text-neutral-400 hover:text-neutral-600 text-xs font-bold"
+                                  >
+                                    {isExpanded ? "▲" : "▼"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAddSelectedByProvider((prev) => ({
+                                        ...prev,
+                                        [prov.id]: {},
+                                      }))
+                                    }
+                                    className="text-neutral-400 hover:text-rose-500 text-xs font-bold ml-0.5"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Expanded Chips List */}
+                          {addExpandedSummaryProviderId && (
+                            <div className="pt-2 border-t border-neutral-200 dark:border-neutral-700 flex flex-wrap gap-1.5">
+                              {Object.keys(
+                                addSelectedByProvider[addExpandedSummaryProviderId] || {}
+                              )
+                                .filter(
+                                  (mName) =>
+                                    addSelectedByProvider[addExpandedSummaryProviderId][mName]
+                                )
+                                .map((mName) => (
+                                  <span
+                                    key={mName}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 rounded-md text-[11px] font-mono font-medium text-teal-800 dark:text-teal-300"
+                                  >
+                                    <span>{mName}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setAddSelectedByProvider((prev) => ({
+                                          ...prev,
+                                          [addExpandedSummaryProviderId]: {
+                                            ...prev[addExpandedSummaryProviderId],
+                                            [mName]: false,
+                                          },
+                                        }))
+                                      }
+                                      className="text-teal-500 hover:text-rose-500 font-bold ml-1"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Global Search Bar */}
+                      <div className="relative">
+                        <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          placeholder="Search this user's assigned models..."
+                          value={addGlobalSearch}
+                          onChange={(e) => setAddGlobalSearch(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400"
+                        />
+                      </div>
+
+                      {/* Split Browser */}
+                      <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden flex h-96 bg-white dark:bg-neutral-900">
+                        {/* Left Provider Sidebar */}
+                        <div className="w-60 border-r border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/40 p-2 overflow-y-auto space-y-1 shrink-0">
+                          <div className="px-2 py-1">
+                            <input
+                              type="text"
+                              placeholder="Search 20 providers..."
+                              value={addProviderSearch}
+                              onChange={(e) => setAddProviderSearch(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs text-neutral-900 dark:text-white focus:outline-none"
+                            />
+                          </div>
+
+                          {STEP2_PROVIDERS.filter((prov) =>
+                            prov.name
+                              .toLowerCase()
+                              .includes(addProviderSearch.toLowerCase())
+                          ).map((prov) => {
+                            const selCount = Object.values(
+                              addSelectedByProvider[prov.id] || {}
+                            ).filter(Boolean).length;
+                            const isActive = addActiveProviderId === prov.id;
+                            return (
+                              <button
+                                key={prov.id}
+                                type="button"
+                                onClick={() => setAddActiveProviderId(prov.id)}
+                                className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                                  isActive
+                                    ? "bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white shadow-2xs"
+                                    : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 truncate">
+                                  <span
+                                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                                    style={{ backgroundColor: prov.color }}
+                                  />
+                                  <span className="truncate">{prov.name}</span>
+                                </div>
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    selCount > 0
+                                      ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
+                                      : "bg-neutral-200/60 dark:bg-neutral-800 text-neutral-500"
+                                  }`}
+                                >
+                                  {selCount > 0 ? selCount : prov.count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Right Catalog View */}
+                        <div className="flex-1 p-4 flex flex-col overflow-hidden">
+                          {/* Header */}
+                          <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
+                            <div>
+                              <span className="text-xs font-bold text-neutral-900 dark:text-white">
+                                {
+                                  (
+                                    STEP2_PROVIDERS.find(
+                                      (p) => p.id === addActiveProviderId
+                                    ) || STEP2_PROVIDERS[0]
+                                  ).name
+                                }
+                              </span>
+                              <span className="text-xs text-neutral-400 ml-1.5">
+                                ·{" "}
+                                {
+                                  (
+                                    STEP2_CATALOG[addActiveProviderId] ||
+                                    STEP2_CATALOG.openai
+                                  ).length
+                                }{" "}
+                                models in catalog
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const catalog =
+                                    STEP2_CATALOG[addActiveProviderId] ||
+                                    STEP2_CATALOG.openai;
+                                  const updatedMap: Record<string, boolean> = {};
+                                  catalog.forEach((m) => (updatedMap[m] = true));
+                                  setAddSelectedByProvider((prev) => ({
+                                    ...prev,
+                                    [addActiveProviderId]: updatedMap,
+                                  }));
+                                }}
+                                className="px-2.5 py-1 text-xs font-bold border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 transition-colors"
+                              >
+                                Select all
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAddSelectedByProvider((prev) => ({
+                                    ...prev,
+                                    [addActiveProviderId]: {},
+                                  }));
+                                }}
+                                className="px-2.5 py-1 text-xs font-bold border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 text-rose-600 dark:text-rose-400 transition-colors"
+                              >
+                                Clear
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Search Input for Active Catalog */}
+                          <div className="py-3 shrink-0">
+                            <input
+                              type="text"
+                              placeholder={`Search ${
+                                (
+                                  STEP2_PROVIDERS.find(
+                                    (p) => p.id === addActiveProviderId
+                                  ) || STEP2_PROVIDERS[0]
+                                ).name
+                              } models by name...`}
+                              value={addModelSearch}
+                              onChange={(e) => setAddModelSearch(e.target.value)}
+                              className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs text-neutral-900 dark:text-white focus:outline-none"
+                            />
+                          </div>
+
+                          {/* Models 2-Column Grid */}
+                          <div className="flex-1 overflow-y-auto pr-1">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {(
+                                STEP2_CATALOG[addActiveProviderId] ||
+                                STEP2_CATALOG.openai
+                              )
+                                .filter(
+                                  (mName) =>
+                                    (!addModelSearch ||
+                                      mName
+                                        .toLowerCase()
+                                        .includes(addModelSearch.toLowerCase())) &&
+                                    (!addGlobalSearch ||
+                                      mName
+                                        .toLowerCase()
+                                        .includes(addGlobalSearch.toLowerCase()))
+                                )
+                                .map((mName) => {
+                                  const isChecked = Boolean(
+                                    addSelectedByProvider[addActiveProviderId]?.[mName]
+                                  );
+                                  const infoKey = `${addActiveProviderId}-${mName}`;
+                                  const isInfoOpen = addInfoOpenKey === infoKey;
+                                  return (
+                                    <div
+                                      key={mName}
+                                      onClick={() =>
+                                        setAddSelectedByProvider((prev) => ({
+                                          ...prev,
+                                          [addActiveProviderId]: {
+                                            ...(prev[addActiveProviderId] || {}),
+                                            [mName]: !isChecked,
+                                          },
+                                        }))
+                                      }
+                                      className={`p-2.5 rounded-xl border text-left text-xs font-mono font-medium flex items-center justify-between transition-all cursor-pointer ${
+                                        isChecked
+                                          ? "border-teal-600 bg-teal-50/40 dark:bg-teal-950/40 text-teal-900 dark:text-teal-200"
+                                          : "border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50"
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2.5 truncate">
+                                        <div
+                                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                                            isChecked
+                                              ? "bg-teal-600 border-teal-600 text-white"
+                                              : "border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800"
+                                          }`}
+                                        >
+                                          {isChecked && (
+                                            <Check className="w-3 h-3 stroke-[3]" />
+                                          )}
+                                        </div>
+                                        <span className="truncate">{mName}</span>
+                                      </div>
+
+                                      {/* Info Icon with Tooltip */}
+                                      <div className="relative shrink-0 ml-1">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setAddInfoOpenKey(
+                                              isInfoOpen ? null : infoKey
+                                            );
+                                          }}
+                                          className="w-4 h-4 rounded-full border border-neutral-300 text-neutral-400 hover:text-neutral-700 text-[10px] font-bold flex items-center justify-center cursor-pointer"
+                                        >
+                                          i
+                                        </button>
+                                        {isInfoOpen && (
+                                          <div className="absolute right-0 bottom-6 z-30 w-64 p-2.5 bg-neutral-900 text-white text-[11px] font-sans rounded-xl shadow-xl space-y-1">
+                                            <div className="font-bold border-b border-neutral-700 pb-1">
+                                              {mName}
+                                            </div>
+                                            <div className="text-neutral-300 text-[10.5px]">
+                                              Context: 128K · Max Out: 4K
+                                            </div>
+                                            <div className="text-neutral-300 text-[10.5px]">
+                                              Input: $0.50/1M · Output: $1.50/1M
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Budget Configuration Card */}
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-emerald-600" />
+                      <span>Budget Configuration</span>
+                    </h2>
+
+                    <label className="flex items-center gap-2 text-xs font-semibold text-neutral-600 dark:text-neutral-400 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={addUnlimitedBudget}
+                        onChange={(e) => setAddUnlimitedBudget(e.target.checked)}
+                        className="w-4 h-4 accent-neutral-900 dark:accent-white rounded"
+                      />
+                      <span>Unlimited Budget</span>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                    {/* Max Budget */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                        Max Budget ($ USD) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        disabled={addUnlimitedBudget}
+                        value={addMaxBudget}
+                        onChange={(e) => setAddMaxBudget(e.target.value)}
+                        placeholder="500"
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs text-neutral-900 dark:text-white focus:outline-none disabled:opacity-40"
+                      />
+                    </div>
+
+                    {/* Soft Budget */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                        Soft Budget ($ USD)
+                      </label>
+                      <input
+                        type="number"
+                        disabled={addUnlimitedBudget}
+                        value={addSoftBudget}
+                        onChange={(e) => setAddSoftBudget(e.target.value)}
+                        placeholder="400"
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs text-neutral-900 dark:text-white focus:outline-none disabled:opacity-40"
+                      />
+                    </div>
+
+                    {/* Budget Reset Duration */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                        Budget Reset Duration
+                      </label>
+                      <select
+                        disabled={addUnlimitedBudget}
+                        value={addResetDuration}
+                        onChange={(e) => setAddResetDuration(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs font-medium text-neutral-900 dark:text-white focus:outline-none cursor-pointer disabled:opacity-40"
+                      >
+                        <option value="Monthly">Monthly</option>
+                        <option value="Lifetime">Lifetime</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="Daily">Daily</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Notification Emails Container */}
+                  <div className="space-y-1 pt-2">
+                    <label className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                      Budget Notification Email
+                    </label>
+                    <div className="p-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl flex flex-wrap items-center gap-2 min-h-[42px]">
+                      {addEmailChips.map((email) => (
+                        <span
+                          key={email}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-medium text-neutral-800 dark:text-neutral-200"
+                        >
+                          <span>{email}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAddEmailChips((prev) =>
+                                prev.filter((e) => e !== email)
+                              )
+                            }
+                            className="text-neutral-400 hover:text-rose-500 font-bold"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+
+                      <input
+                        type="text"
+                        placeholder="Add email..."
+                        value={addEmailDraft}
+                        onChange={(e) => setAddEmailDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const trimmed = addEmailDraft.trim();
+                            if (trimmed && !addEmailChips.includes(trimmed)) {
+                              setAddEmailChips((prev) => [...prev, trimmed]);
+                              setAddEmailDraft("");
+                            }
+                          }
+                        }}
+                        className="flex-1 min-w-[120px] bg-transparent text-xs text-neutral-900 dark:text-white focus:outline-none"
+                      />
+                    </div>
+                    <p className="text-[11px] text-neutral-400">
+                      Recipients receive email notifications when Soft Budget or Maximum Budget is reached. Press Enter to add.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. Rate Limits Card */}
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                      <Sliders className="w-4 h-4 text-purple-600" />
+                      <span>Rate Limits</span>
+                    </h2>
+
+                    <label className="flex items-center gap-2 text-xs font-semibold text-neutral-600 dark:text-neutral-400 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={addUnlimitedRateLimits}
+                        onChange={(e) => setAddUnlimitedRateLimits(e.target.checked)}
+                        className="w-4 h-4 accent-neutral-900 dark:accent-white rounded"
+                      />
+                      <span>Unlimited Rate Limits</span>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                        TPM Limit (Tokens Per Minute)
+                      </label>
+                      <input
+                        type="number"
+                        disabled={addUnlimitedRateLimits}
+                        value={addTpm}
+                        onChange={(e) => setAddTpm(e.target.value)}
+                        placeholder="100000"
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs text-neutral-900 dark:text-white focus:outline-none disabled:opacity-40"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                        RPM Limit (Requests Per Minute)
+                      </label>
+                      <input
+                        type="number"
+                        disabled={addUnlimitedRateLimits}
+                        value={addRpm}
+                        onChange={(e) => setAddRpm(e.target.value)}
+                        placeholder="1000"
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs text-neutral-900 dark:text-white focus:outline-none disabled:opacity-40"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Footer Navigation Buttons */}
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setAddStepIndex(0)}
+                disabled={addStepIndex === 0}
+                className="px-5 py-2.5 border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 font-bold text-xs rounded-xl transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                &larr; Back
+              </button>
+
+              {addStepIndex === 0 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!addKeyName.trim()) {
+                      toast.error("Please enter a Virtual Key Name");
+                      return;
+                    }
+                    setAddStepIndex(1);
+                  }}
+                  disabled={!addKeyName.trim()}
+                  className="px-6 py-2.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-neutral-900 font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Continue &rarr;
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSaveNewVirtualKey}
+                  className="px-6 py-2.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-neutral-900 font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <span>Save Virtual Key</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Modals & Dialogs Remain Active */}
       {/* ... Create/Edit, Regenerate, Filter, Block, Reset Spend, Delete Modals ... */}

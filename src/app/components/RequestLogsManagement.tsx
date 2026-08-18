@@ -1665,9 +1665,13 @@ export const mockRequestLogsData: RequestLogEntry[] = [
   }
 ];
 
-export function RequestLogsManagement() {
+interface RequestLogsProps {
+  initialTab?: "request" | "audit";
+}
+
+export function RequestLogsManagement({ initialTab = "request" }: RequestLogsProps) {
   // Navigation tab state inside Header (Request Logs, Audit Logs)
-  const [headerTab, setHeaderTab] = useState<"request" | "audit" | "deleted_keys" | "deleted_teams">("request");
+  const [headerTab, setHeaderTab] = useState<"request" | "audit" | "deleted_keys" | "deleted_teams">(initialTab);
 
   useEffect(() => {
     document.title = "Logs | SA - Guardian Layer";
@@ -1938,7 +1942,7 @@ export function RequestLogsManagement() {
   return (
     <div className="space-y-4 p-4 sm:p-6 max-w-[1700px] mx-auto text-xs animate-fadeIn">
       {/* SECTION 1: HEADER & NAVIGATION TABS */}
-      <div className="space-y-3 bg-white dark:bg-neutral-900 p-5 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-2xs">
+      <div className="bg-white dark:bg-neutral-900 p-5 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">Request Logs</h1>
           <p className="text-xs text-neutral-500 mt-1 font-medium">
@@ -1951,53 +1955,24 @@ export function RequestLogsManagement() {
           </div>
         </div>
 
-        {/* Navigation Tabs (Request Logs & Audit Logs) */}
-        <div className="pt-2 border-b border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex gap-6 text-xs font-semibold overflow-x-auto">
-            <button
-              type="button"
-              onClick={() => setHeaderTab("request")}
-              className={`pb-3 border-b-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
-                headerTab === "request"
-                  ? "border-primary-600 text-primary-600 dark:text-primary-400 font-bold"
-                  : "border-transparent text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
-              }`}
-            >
-              <span>Request Logs</span>
-            </button>
+        {/* Quick Filters buttons on Header */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowFilterDrawer(true)}
+            className="px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-1.5 transition-colors"
+          >
+            <Filter className="w-3.5 h-3.5 text-primary-600" />
+            <span>Filters</span>
+          </button>
 
-            <button
-              type="button"
-              onClick={() => setHeaderTab("audit")}
-              className={`pb-3 border-b-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
-                headerTab === "audit"
-                  ? "border-primary-600 text-primary-600 dark:text-primary-400 font-bold"
-                  : "border-transparent text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
-              }`}
-            >
-              <span>Audit Logs</span>
-            </button>
-          </div>
-
-          {/* Quick Filters buttons on Header */}
-          <div className="flex items-center gap-2 pb-2">
-            <button
-              type="button"
-              onClick={() => setShowFilterDrawer(true)}
-              className="px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-1.5 transition-colors"
-            >
-              <Filter className="w-3.5 h-3.5 text-primary-600" />
-              <span>Filters</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 font-semibold text-neutral-600 dark:text-neutral-400 transition-colors"
-            >
-              Reset Filters
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            className="px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 font-semibold text-neutral-600 dark:text-neutral-400 transition-colors"
+          >
+            Reset Filters
+          </button>
         </div>
       </div>
 

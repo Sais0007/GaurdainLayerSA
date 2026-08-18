@@ -13,9 +13,9 @@ export function CapacityFilters({ filters, onChangeFilter, onResetFilters }: Cap
   return (
     <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4 shadow-xs space-y-3">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs font-bold text-neutral-900 dark:text-white">
+        <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-neutral-900 dark:text-white">
           <Filter className="w-4 h-4 text-amber-500" />
-          <span>Diagnostic Filter Bar (Capacity & Limits)</span>
+          <span>CAPACITY &amp; THROUGHPUT FILTERS</span>
         </div>
 
         <button

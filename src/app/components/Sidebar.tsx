@@ -43,6 +43,8 @@ export function Sidebar({
   const [expandedMenus, setExpandedMenus] = useState<string[]>([
     "access-control",
     "ai-gateway",
+    "master-management",
+    "logs-menu",
     "employee-management",
     "organisational-master",
     "attendance-management",

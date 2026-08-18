@@ -134,6 +134,7 @@ interface PageHeaderProps {
   subtitle?: string;
   breadcrumbs?: BreadcrumbConfig[];
   children?: React.ReactNode;
+  actions?: React.ReactNode;
   className?: string;
   moreMenu?: MoreMenuConfig;
   pageId?: string;
@@ -147,6 +148,7 @@ export function PageHeader({
   subtitle,
   breadcrumbs: initialBreadcrumbs,
   children,
+  actions,
   className = '',
   moreMenu,
   pageId,
@@ -224,9 +226,10 @@ export function PageHeader({
           )}
         </div>
 
-        {(children || hasMoreMenu) && (
+        {(children || actions || hasMoreMenu) && (
           <div className="flex items-center gap-2">
             {children}
+            {actions}
             
             {hasMoreMenu && (
               <div className="relative" data-flyout-container>

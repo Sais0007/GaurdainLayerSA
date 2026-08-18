@@ -13,9 +13,9 @@ export function RequestsFilters({ filters, onChangeFilter, onResetFilters }: Req
   return (
     <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4 shadow-xs space-y-3">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs font-bold text-neutral-900 dark:text-white">
+        <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-neutral-900 dark:text-white">
           <Filter className="w-4 h-4 text-primary-600" />
-          <span>Diagnostic Filter Bar (Request Analytics)</span>
+          <span>REQUESTS ANALYTICS FILTERS</span>
         </div>
 
         <button
